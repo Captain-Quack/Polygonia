@@ -20,3 +20,15 @@ No game construction, agents, persistence, or origin rebasing is implemented in 
 
 ## Floor tools update
 Godot 4.5.1: fresh editor import and runtime startup passed. Existing world suite and new floor suite both report 0 failures. New checks cover interior erasure, preservation outside erasures, repaint, non-overlapping region storage, huge compact fills, reverse rectangle drags, dominant-axis line shapes, coarse snap selection, and exclusive toolbar state. Graphical inspection remains unavailable on this host; the supplied reference images informed the procedural button and ink styling.
+
+## Modular construction tools — 2026-10-14
+
+Implemented against current main `d0de78d`, preserving its Godot 4.7 project settings and scene metadata. Validation used available Godot 4.5.1 stable; Godot 4.7 and graphical Inspector interaction were not tested.
+
+- Headless editor import registers ConstructionToolDefinition, ConstructionCategoryDefinition, ConstructionToolHandler, and both concrete handlers without script errors.
+- All six suites pass with zero failures: world, floors, construction, shape_geometry, menu_layout, modular_tools.
+- Main-scene headless startup (5 frames) and `git diff --check` pass.
+- New resource-existence checks failed before implementation and pass afterward.
+- New tests demonstrate a third tool in a second category, registration, commit dispatch, fallback labels, unsupported tools, exclusive selection, cancellation, live edits, invalid IDs, ordering, repeated rebuild/collapse, wrapping and viewport resizing.
+- Independent review identified legacy fallback array edits failing to refresh. A regression test reproduced the failure; effective-category snapshots fix it. Resource changed signals refresh field edits; snapshots also catch in-place array edits that do not emit changed.
+- Visual appearance and New Resource dialog interaction still require a graphical Godot check; headless global-class registration is verified.

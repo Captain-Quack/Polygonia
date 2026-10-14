@@ -23,13 +23,13 @@ func run() -> void:
 	root.add_child(world)
 	await process_frame
 	var editor = world.get_node("ConstructionPreview")
-	check(editor.shape(Vector2i(4, 3), Vector2i(1, -1), 1, 1) == Rect2i(1, -1, 3, 4), "Rectangle reverse drag")
-	check(editor.line_endpoint(Vector2i.ZERO, Vector2i(5, 2)) == Vector2i(5, 0), "Line locks dominant axis")
+	check(editor.handlers[&"square"].shape(Vector2i(4, 3), Vector2i(1, -1), 1) == Rect2i(1, -1, 3, 4), "Rectangle reverse drag")
+	check(editor.handlers[&"line"].line_endpoint(Vector2i.ZERO, Vector2i(5, 2)) == Vector2i(5, 0), "Line locks dominant axis")
 	check(editor.visible_step() == 1, "Base snap at normal zoom")
 	world.get_node("Camera2D").zoom = Vector2.ONE * 0.05
 	check(editor.visible_step() == 5, "Snap follows dominant coarse grid")
-	editor.select_tool(1)
-	check(editor.square_button.button_pressed and not editor.line_button.button_pressed, "Exclusive tools")
+	editor.select_tool(&"square")
+	check(editor.menu.buttons[&"square"].button_pressed and not editor.menu.buttons[&"line"].button_pressed, "Exclusive tools")
 	editor.dragging = true
 	editor.erasing = false
 	var second := InputEventMouseButton.new()

@@ -41,35 +41,35 @@ func run() -> void:
 	root.add_child(world)
 	await process_frame
 	var editor = world.get_node("ConstructionPreview")
-	check(editor.has_method("line_endpoint"), "Line input produces snapped endpoints rather than boxes")
-	if editor.has_method("line_endpoint"):
-		check(editor.line_endpoint(Vector2i(1, 1), Vector2i(6, 3)) == Vector2i(6, 1), "Line locks to horizontal grid edge")
-		check(editor.line_endpoint(Vector2i(1, 1), Vector2i(-1, -8)) == Vector2i(1, -8), "Line locks to vertical grid edge")
+	check(editor.handlers[&"line"].has_method("line_endpoint"), "Line input produces snapped endpoints rather than boxes")
+	if editor.handlers[&"line"].has_method("line_endpoint"):
+		check(editor.handlers[&"line"].line_endpoint(Vector2i(1, 1), Vector2i(6, 3)) == Vector2i(6, 1), "Line locks to horizontal grid edge")
+		check(editor.handlers[&"line"].line_endpoint(Vector2i(1, 1), Vector2i(-1, -8)) == Vector2i(1, -8), "Line locks to vertical grid edge")
 	var menu = world.get_node_or_null("CanvasLayer/ConstructionMenu")
 	check(menu != null, "World has a collapsible construction category")
 	if menu != null:
-		editor.select_tool(1)
-		menu.expanded = false
+		editor.select_tool(&"square")
+		menu.set_category_expanded(&"shapes", false)
 		await process_frame
-		check(not menu.tools.visible and editor.tool == 1, "Collapsing menu preserves selected tool")
-		menu.expanded = true
+		check(not menu.tool_grids[&"shapes"].visible and editor.tool == &"square", "Collapsing menu preserves selected tool")
+		menu.set_category_expanded(&"shapes", true)
 		await process_frame
-		check(menu.tools.visible, "Category reopens tools")
-		check(editor.square_button.tool_kind == 1, "Square gets a distinct filled-square icon")
+		check(menu.tool_grids[&"shapes"].visible, "Category reopens tools")
+		check(menu.buttons[&"square"].definition.icon != null, "Square gets a distinct filled-square icon")
 		var camera = world.get_node("Camera2D")
 		var old_zoom: float = camera._target_zoom
 		var wheel := InputEventMouseButton.new()
 		wheel.button_index = MOUSE_BUTTON_WHEEL_UP
 		wheel.pressed = true
-		wheel.position = menu.category.get_global_rect().get_center()
+		wheel.position = menu.category_buttons[&"shapes"].get_global_rect().get_center()
 		root.push_input(wheel)
 		check(is_equal_approx(camera._target_zoom, old_zoom), "Category consumes wheel events")
-	editor.select_tool(0)
+	editor.select_tool(&"line")
 	editor.commit_stroke(Vector2i(-3, 0), Vector2i(4, 1), false)
 	check(editor.data.regions.is_empty(), "Actual line commit creates no floor area")
 	check(editor.data.lines == [Vector4i(-3, 0, 4, 0)], "Actual line commit stores grid-aligned segment")
 	editor.commit_stroke(Vector2i(4, 0), Vector2i(5, 4), false)
-	editor.select_tool(1)
+	editor.select_tool(&"square")
 	editor.commit_stroke(Vector2i(-2, -2), Vector2i(2, 2), false)
 	editor.commit_stroke(Vector2i(2, -1), Vector2i(4, 2), false)
 	editor.commit_stroke(Vector2i(-1, -1), Vector2i(1, 1), true)

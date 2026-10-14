@@ -9,6 +9,12 @@
 [ext_resource type="Script" uid="uid://efmmvxhka2xo" path="res://floors/floor_editor.gd" id="5"]
 [ext_resource type="Script" uid="uid://b6a0fivqi4bqj" path="res://floors/construction_menu.gd" id="6"]
 
+[ext_resource type="Script" path="res://floors/construction_category_definition.gd" id="7"]
+[ext_resource type="Resource" path="res://floors/tools/default_category.tres" id="8"]
+[ext_resource type="Script" path="res://floors/construction_tool_handler.gd" id="9"]
+[ext_resource type="Resource" path="res://floors/tools/line_handler.tres" id="10"]
+[ext_resource type="Resource" path="res://floors/tools/square_handler.tres" id="11"]
+
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_fyhu2"]
 shader = ExtResource("1_ai45w")
 shader_parameter/paper_color = Color(0.9647059, 0.94509804, 0.90588236, 1)
@@ -52,6 +58,7 @@ script = ExtResource("4")
 
 [node name="ConstructionPreview" type="Node2D" parent="." unique_id=1904252962]
 script = ExtResource("5")
+tool_handlers = Array[ExtResource("9")]([ExtResource("10"), ExtResource("11")])
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=1090338365]
 script = ExtResource("3")
@@ -110,6 +117,7 @@ grow_vertical = 0
 mouse_filter = 2
 theme_override_constants/separation = 8
 script = ExtResource("6")
+categories = Array[ExtResource("7")]([ExtResource("8")])
 
 [node name="FloorHint" type="Label" parent="CanvasLayer" unique_id=386075317]
 anchors_preset = 2
