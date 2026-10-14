@@ -1,7 +1,31 @@
 extends RefCounted
-## Non-overlapping rectangles in BASE-cell coordinates; empty space costs nothing.
+## Compact rectangle storage until polygon edits promote to shared scan bands.
+## All geometry uses BASE-cell coordinates; empty space costs nothing.
 signal changed
 var regions: Array[Rect2i] = []
+const PolygonFloor = preload("res://floors/polygon_floor.gd")
+var polygon_floor: RefCounted
+
+## A polygon edit promotes the existing floor once. Lines remain independent.
+func apply_polygon(polygon: PackedVector2Array, erase: bool) -> bool:
+	var target = polygon_floor if polygon_floor != null else PolygonFloor.new()
+	if polygon_floor == null:
+		for rect in regions:
+			target.pieces.append(PolygonFloor.rect_polygon(rect))
+	if not target.apply_polygon(polygon, erase):
+		return false
+	polygon_floor = target
+	regions.clear()
+	changed.emit()
+	return true
+
+func contains_point(point: Vector2) -> bool:
+	if polygon_floor != null:
+		return polygon_floor.contains_point(point)
+	for rect in regions:
+		if Rect2(rect).has_point(point):
+			return true
+	return false
 
 func subtract(source: Rect2i, cut: Rect2i) -> Array[Rect2i]:
 	var result: Array[Rect2i] = []
@@ -19,6 +43,10 @@ func subtract(source: Rect2i, cut: Rect2i) -> Array[Rect2i]:
 	return result
 
 func apply_rect(rect: Rect2i, erase: bool) -> void:
+	if polygon_floor != null:
+		if rect.has_area():
+			apply_polygon(PolygonFloor.rect_polygon(rect), erase)
+		return
 	if not rect.has_area():
 		return
 	var next: Array[Rect2i] = []
@@ -30,6 +58,8 @@ func apply_rect(rect: Rect2i, erase: bool) -> void:
 	changed.emit()
 
 func contains(cell: Vector2i) -> bool:
+	if polygon_floor != null:
+		return contains_point(Vector2(cell) + Vector2.ONE * 0.5)
 	for region in regions:
 		if region.has_point(cell):
 			return true
@@ -81,6 +111,8 @@ func apply_line(a: Vector2i, b: Vector2i, erase: bool) -> void:
 ## Cancel opposing rectangle edges using interval events, with no per-cell map.
 ## Preserve event endpoints so contours also work at T junctions and corner touches.
 func boundary_loops() -> Array:
+	if polygon_floor != null:
+		return polygon_floor.boundary_loops()
 	var horizontal := {}
 	var vertical := {}
 	for rect in regions:

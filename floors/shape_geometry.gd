@@ -17,6 +17,10 @@ static func rounded_loop(raw: PackedVector2Array, radius: float, steps: int = 6)
 		var corner := points[i]
 		var previous := points[(i - 1 + points.size()) % points.size()]
 		var next := points[(i + 1) % points.size()]
+		var turn := absf((corner - previous).angle_to(next - corner))
+		if turn < 0.15:
+			rounded.append(corner)
+			continue
 		var distance := minf(radius, minf(corner.distance_to(previous), corner.distance_to(next)) * 0.49)
 		var a := corner.move_toward(previous, distance)
 		var b := corner.move_toward(next, distance)

@@ -86,3 +86,19 @@ Empty or duplicate IDs are skipped with configuration warnings on the menu. The 
 Menu resources update in the editor when their fields/arrays change. The existing `icon_width` setting now scales texture icons relative to its default 3.5; edit the SVG asset to change stroke thickness. Line widths in the world are still controlled by FloorRenderer.
 
 Run `test_modular_tools.gd` in addition to the five existing suites. It exercises a test-only third handler, multiple categories, live edits, unsupported/invalid IDs, selection and repeated collapse/rebuild cycles.
+
+## Circle construction
+
+Circle is a filled-floor tool in Construction Shapes. Click a grid intersection for the center and drag to set radius. Both center and radius snap to the active grid; diagonal drags use Euclidean distance rounded to a grid multiple. The snap step stays frozen during the drag. The preview shows the center, four cardinal extents, a guide to the actual snapped circumference, and radius/diameter in base cells. A click without dragging does nothing.
+
+Circle and Square edit the same floor. Painting overlapping shapes merges their fill and exterior outline; either tool can erase the other's floor, create holes, or split islands. Repainting fills holes without darkening overlap. Point tangencies retain separate contours. Line strokes stay independent; floor erasing leaves them intact. Escape, tool switching, focus loss, and releasing over UI cancel a drag.
+
+Inspector controls:
+- `ConstructionPreview → Preview Guides`: guide visibility, color, width, marker radius and text size. Erase guides use the erase-ink color.
+- Its Circle handler resource in **Tool Handlers**: **Target Chord Error Cells** and **Max Segments**. Circle approximations have at least 64 vertices and exact cardinal points. Vertex count depends on radius/accuracy, never zoom. The segment cap takes precedence over target accuracy; very large circles may show facets when magnified.
+
+Shared floor APIs are `apply_rect(rect, erase)`, `apply_polygon(points, erase)`, `contains_point(point)` and `boundary_loops()`, all in base-cell coordinates. Rectangle-only worlds retain compact integer rectangles. A valid polygon edit promotes the floor to a disjoint polygon scan-band backend, after which `regions` is empty; consume the query/contour APIs instead. `contains(cell)` tests the cell center after promotion. Simple concave polygons are supported; self-intersections and nonadjacent touching/repeated vertices are rejected without changing floor state. A future filled tool can generate a simple polygon and use the same backend without special merging logic.
+
+Scan-band Boolean edits split at boundary intersections, union/subtract intervals, and produce non-overlapping trapezoids. Horizontal seams cancel into outer/hole contours; translucent fill is drawn once. Topology keys quantize to 0.0001 base cells and avoid 32-bit scaling overflow. Calculations and fill-band triangulation use local origins; the engine's floating-point coordinate precision still limits detail extremely far from the origin.
+
+Run `test_circle_tools.gd` alongside the six existing suites. It verifies snapping, preview/commit agreement, cardinal extents, square/circle interoperability, nested holes and islands, point tangencies, mixed-edit occupancy, invalid input, distant circles, renderer geometry, and 25 overlapping circles. Agent passage and room recognition are future work.

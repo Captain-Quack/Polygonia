@@ -39,7 +39,7 @@ func run() -> void:
 	extra.tools = [third]
 	menu.categories.append(extra)
 	await settle()
-	check(menu.buttons.size() == 3 and menu.category_buttons.size() == 2, "Third tool and second category appear without menu edits")
+	check(menu.buttons.size() == 4 and menu.category_buttons.size() == 2, "Third tool and second category appear without menu edits")
 	check(menu.buttons[&"third"].disabled and "No construction handler" in menu.buttons[&"third"].tooltip_text, "Unsupported tool disabled with explanation")
 	check(menu.buttons[&"third"].text == "Third tool", "Missing icon falls back to label")
 	var handler := TestHandler.new()
@@ -87,8 +87,8 @@ func run() -> void:
 	extra.tools.append(third)
 	menu.categories.append(extra)
 	await settle()
-	check(menu.buttons.size() == 3 and menu.configuration_warnings.size() == 3, "Empty and duplicate IDs are skipped with warnings")
-	check(menu.buttons.keys() == [&"line", &"square", &"third"], "Definitions preserve tool ordering")
+	check(menu.buttons.size() == 4 and menu.configuration_warnings.size() == 3, "Empty and duplicate IDs are skipped with warnings")
+	check(menu.buttons.keys() == [&"line", &"square", &"circle", &"third"], "Definitions preserve tool ordering")
 	# Remove selected definition while dragging: fallback must cancel the stroke.
 	editor.dragging = true
 	editor.camera.construction_active = true
@@ -97,6 +97,7 @@ func run() -> void:
 	check(editor.tool == &"line" and not editor.dragging, "Removing selected definition selects fallback and cancels")
 	editor.unregister_handler(&"line")
 	editor.unregister_handler(&"square")
+	editor.unregister_handler(&"circle")
 	check(editor.tool == &"", "No supported menu tools deactivates construction")
 	var press := InputEventMouseButton.new()
 	press.button_index = MOUSE_BUTTON_LEFT

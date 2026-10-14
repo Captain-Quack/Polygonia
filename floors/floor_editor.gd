@@ -8,6 +8,12 @@ const FloorData = preload("res://floors/floor_data.gd")
 @export var erase_preview_ink := Color(0.72, 0.28, 0.22, 0.9)
 @export var preview_ink := Color(0.24, 0.34, 0.29, 0.8)
 @export_range(0.5, 24.0, 0.1) var preview_width := 3.5
+@export_group("Preview Guides")
+@export var show_preview_guides := true
+@export var guide_color := Color(0.24, 0.34, 0.29, 0.8)
+@export_range(0.5, 8.0, 0.1) var guide_width := 1.0
+@export_range(1.0, 12.0, 0.5) var guide_marker_radius := 3.0
+@export_range(10, 32, 1) var guide_font_size := 14
 var data := FloorData.new()
 @export var tool_handlers: Array[ConstructionToolHandler] = []
 var tool: StringName = &""
@@ -143,6 +149,20 @@ func _draw() -> void:
 		draw_colored_polygon(polygon, color)
 	var width: float = renderer.line_width if geometry.get("use_line_width", false) else preview_width
 	_preview_ink.configure(geometry.get("paths", []), width / camera.zoom.x, ink, geometry.get("closed", false))
+	if show_preview_guides:
+		var scale := maxf(camera.zoom.x, 0.0001)
+		var tint := erase_preview_ink if erasing else guide_color
+		for guide in geometry.get("guides", []):
+			draw_polyline(guide, tint, guide_width / scale, true)
+		for marker in geometry.get("markers", PackedVector2Array()):
+			draw_circle(marker, guide_marker_radius / scale, tint, true, -1, true)
+		if geometry.has("label"):
+			# Transform the font with the canvas, compensating only for camera zoom.
+			var font: Font = ThemeDB.fallback_font
+			var label_position: Vector2 = geometry.get("label_position", Vector2.ZERO)
+			draw_set_transform(label_position + Vector2(10, -10) / scale, 0, Vector2.ONE / scale)
+			draw_string(font, Vector2.ZERO, geometry["label"], HORIZONTAL_ALIGNMENT_LEFT, -1, guide_font_size, tint)
+			draw_set_transform(Vector2.ZERO)
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
