@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="ConstructionToolDefinition" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://floors/construction_tool_definition.gd" id="1"]
+[ext_resource type="Texture2D" path="res://floors/icons/square.svg" id="2"]
+
+[resource]
+script = ExtResource("1")
+tool_id = &"square"
+display_name = "Square"
+tooltip = "Drag a filled area; right-drag erases floor"
+icon = ExtResource("2")

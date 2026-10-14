@@ -70,3 +70,19 @@ godot --headless --path . --script res://tests/test_menu_layout.gd
 The initial main branch contains the latest shared project, including the menu positioning fix. Commit source scenes, scripts, shaders and Godot UID files. Generated Godot caches and local credentials are ignored.
 
 Before each change, pull the latest version. After editing locally, commit and push before asking for changes to the same files so both collaborators use the same version.
+
+## Adding construction tools in the Inspector
+
+Open the project once in Godot 4.5+ so it imports scripts and registers the resource classes. `ConstructionToolDefinition` and `ConstructionCategoryDefinition` then appear in **New Resource** (and the typed array element dropdowns).
+
+1. Select `World/CanvasLayer/ConstructionMenu`. Expand **Categories**, then the existing category resource and its **Tools** array. Line and Square are editable `.tres` resources here, not named buttons in code.
+2. Add a Tools element and choose **New ConstructionToolDefinition**. Set a unique **Tool Id** (for example `door`), **Display Name**, **Tooltip**, and optional **Icon**. With no icon, the button shows its label. Save the resource if you want to reuse it.
+3. For another submenu, add **New ConstructionCategoryDefinition** to Categories. Set its unique **Category Id**, **Title**, **Default Expanded**, and ordered Tools. **Columns** on the menu controls wrapping. Selection is shared across categories.
+4. To give the new tool behavior, extend `ConstructionToolHandler` in a script, set `tool_id` to the same ID, and override `commit(data, a, b, step, erase)` and `preview_geometry(a, b, step, cell_size, radius)`. The Line and Square handler scripts under `floors/tools/` are working examples. Preview returns a dictionary with `paths` and `fills` arrays of `PackedVector2Array` in world pixels, plus `closed` and optional `use_line_width` booleans.
+5. Create a Resource using your handler script and add it to **Tool Handlers** on `World/ConstructionPreview`. Alternatively, call `register_handler(handler)` at runtime. No menu or editor changes are needed. Unregistered tools remain visible but disabled at runtime with an explanatory tooltip; they remain visible in the editor for layout.
+
+Empty or duplicate IDs are skipped with configuration warnings on the menu. The first valid occurrence wins. Removing the active definition/handler selects the first available tool and cancels the stroke; with none available construction stops. A missing Categories array uses the default category and legacy Category Title/Expanded settings for older scenes. Explicit resources take precedence over those legacy settings.
+
+Menu resources update in the editor when their fields/arrays change. The existing `icon_width` setting now scales texture icons relative to its default 3.5; edit the SVG asset to change stroke thickness. Line widths in the world are still controlled by FloorRenderer.
+
+Run `test_modular_tools.gd` in addition to the five existing suites. It exercises a test-only third handler, multiple categories, live edits, unsupported/invalid IDs, selection and repeated collapse/rebuild cycles.
