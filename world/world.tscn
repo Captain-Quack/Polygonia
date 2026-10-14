@@ -1,57 +1,81 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene format=3 uid="uid://dbyabe8lnyo6v"]
 
-[ext_resource type="Script" path="res://world/paper_renderer.gd" id="1"]
-[ext_resource type="Script" path="res://world/grid_renderer.gd" id="2"]
-[ext_resource type="Script" path="res://world/world_camera.gd" id="3"]
+[ext_resource type="Script" uid="uid://ijo0wok6gi3y" path="res://world/paper_renderer.gd" id="1"]
+[ext_resource type="Shader" uid="uid://dayjva5knu18e" path="res://shaders/paper.gdshader" id="1_ai45w"]
+[ext_resource type="Script" uid="uid://ce6hppki653c0" path="res://world/grid_renderer.gd" id="2"]
+[ext_resource type="Script" uid="uid://do53owsswig20" path="res://world/world_camera.gd" id="3"]
+[ext_resource type="Shader" uid="uid://bbgj411k0752f" path="res://shaders/grid.gdshader" id="3_4papg"]
+[ext_resource type="Script" uid="uid://d2ydoyhqn64jg" path="res://floors/floor_renderer.gd" id="4"]
+[ext_resource type="Script" uid="uid://efmmvxhka2xo" path="res://floors/floor_editor.gd" id="5"]
+[ext_resource type="Script" uid="uid://b6a0fivqi4bqj" path="res://floors/construction_menu.gd" id="6"]
 
-[ext_resource type="Script" path="res://floors/floor_renderer.gd" id="4"]
-[ext_resource type="Script" path="res://floors/floor_editor.gd" id="5"]
-[ext_resource type="Script" path="res://floors/construction_menu.gd" id="6"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_fyhu2"]
+shader = ExtResource("1_ai45w")
+shader_parameter/paper_color = Color(0.9647059, 0.94509804, 0.90588236, 1)
+shader_parameter/grain_color = Color(0.5058824, 0.45490196, 0.38039216, 1)
+shader_parameter/grain_strength = 0.035
+shader_parameter/grain_scale = 1.6
+shader_parameter/grain_seed = 27.0
 
-[node name="World" type="Node2D"]
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_ov2xu"]
+shader = ExtResource("3_4papg")
+shader_parameter/base_cell_size = 64.0
+shader_parameter/major_step_count = 5
+shader_parameter/level_step_count = 5
+shader_parameter/minor_color = Color(0.4, 0.55, 0.59, 0.24)
+shader_parameter/major_color = Color(0.35, 0.48, 0.52, 0.34)
+shader_parameter/grid_opacity = 1.0
+shader_parameter/minor_width = 0.75
+shader_parameter/major_width = 1.0
+shader_parameter/target_screen_spacing = 24.0
+shader_parameter/fade_range = 1.0
 
-[node name="PaperRenderer" type="Node2D" parent="."]
+[node name="World" type="Node2D" unique_id=1133773214]
+
+[node name="PaperRenderer" type="Node2D" parent="." unique_id=726284503]
 show_behind_parent = true
+material = SubResource("ShaderMaterial_fyhu2")
 script = ExtResource("1")
 
-[node name="GridRenderer" type="Node2D" parent="."]
+[node name="GridRenderer" type="Node2D" parent="." unique_id=1544699133]
+material = SubResource("ShaderMaterial_ov2xu")
 script = ExtResource("2")
 
-[node name="FloorRenderer" type="Node2D" parent="."]
+[node name="FloorRenderer" type="Node2D" parent="." unique_id=1014312067]
 script = ExtResource("4")
 
-[node name="WallRenderer" type="Node2D" parent="."]
+[node name="WallRenderer" type="Node2D" parent="." unique_id=1226749074]
 
-[node name="ObjectContainer" type="Node2D" parent="."]
+[node name="ObjectContainer" type="Node2D" parent="." unique_id=1353168817]
 
-[node name="AgentContainer" type="Node2D" parent="."]
+[node name="AgentContainer" type="Node2D" parent="." unique_id=1747941953]
 
-[node name="ConstructionPreview" type="Node2D" parent="."]
+[node name="ConstructionPreview" type="Node2D" parent="." unique_id=1904252962]
 script = ExtResource("5")
 
-[node name="Camera2D" type="Camera2D" parent="."]
+[node name="Camera2D" type="Camera2D" parent="." unique_id=1090338365]
 script = ExtResource("3")
 
-[node name="CanvasLayer" type="CanvasLayer" parent="."]
+[node name="CanvasLayer" type="CanvasLayer" parent="." unique_id=1512761027]
 
-[node name="Toolbar" type="MarginContainer" parent="CanvasLayer"]
+[node name="Toolbar" type="MarginContainer" parent="CanvasLayer" unique_id=1065137635]
 offset_left = 28.0
 offset_top = 24.0
 mouse_filter = 2
 
-[node name="Title" type="Label" parent="CanvasLayer/Toolbar"]
+[node name="Title" type="Label" parent="CanvasLayer/Toolbar" unique_id=1421776440]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.29, 0.34, 0.33, 1)
 theme_override_font_sizes/font_size = 22
 text = "POLYGONIA"
+
+[node name="Inspector" type="Control" parent="CanvasLayer" unique_id=1174608757]
+layout_mode = 3
+anchors_preset = 0
 mouse_filter = 2
 
-[node name="Inspector" type="Control" parent="CanvasLayer"]
-layout_mode = 0
-mouse_filter = 2
-
-[node name="WorldControls" type="HBoxContainer" parent="CanvasLayer"]
-anchors_preset = 12
+[node name="WorldControls" type="HBoxContainer" parent="CanvasLayer" unique_id=352697429]
+anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 28.0
@@ -59,42 +83,41 @@ offset_top = -174.0
 offset_right = 710.0
 offset_bottom = -140.0
 grow_vertical = 0
-theme_override_constants/separation = 18
 mouse_filter = 2
+theme_override_constants/separation = 18
 
-[node name="ResetView" type="Button" parent="CanvasLayer/WorldControls"]
+[node name="ResetView" type="Button" parent="CanvasLayer/WorldControls" unique_id=90650245]
 layout_mode = 2
+focus_mode = 0
 mouse_force_pass_scroll_events = false
 text = "Return to origin"
-focus_mode = 0
 
-[node name="Hint" type="Label" parent="CanvasLayer/WorldControls"]
+[node name="Hint" type="Label" parent="CanvasLayer/WorldControls" unique_id=1932470738]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.38, 0.43, 0.42, 1)
 theme_override_font_sizes/font_size = 14
 text = "Scroll to zoom  ·  Middle drag / Space + drag to pan  ·  Home to reset"
-mouse_filter = 2
 
-
-
-[node name="ConstructionMenu" type="VBoxContainer" parent="CanvasLayer"]
+[node name="ConstructionMenu" type="VBoxContainer" parent="CanvasLayer" unique_id=151443483]
+anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 28.0
 offset_top = -122.0
-offset_right = 258.0
+offset_right = 248.0
 offset_bottom = -18.0
 grow_vertical = 0
 mouse_filter = 2
+theme_override_constants/separation = 8
 script = ExtResource("6")
 
-[node name="FloorHint" type="Label" parent="CanvasLayer"]
+[node name="FloorHint" type="Label" parent="CanvasLayer" unique_id=386075317]
+anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
 offset_left = 282.0
 offset_top = -47.0
 offset_bottom = -22.0
-mouse_filter = 2
 theme_override_colors/font_color = Color(0.34, 0.39, 0.35, 1)
 text = "Shapes  ·  Left-drag to paint  ·  Right-drag to erase  ·  Esc to cancel"
 
