@@ -1,0 +1,16 @@
+# Godot generated cache and exports
+.godot/
+/export/
+/exports/
+*.tmp
+
+# Local credentials and editor settings
+.env
+.env.*
+!.env.example
+.idea/
+.vscode/
+
+# Operating system files
+.DS_Store
+Thumbs.db

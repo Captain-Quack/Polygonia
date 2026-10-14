@@ -1,0 +1,4 @@
+# Floor tools
+User requested implementation of floor painting/erasing with two bottom square tool buttons, hand-drawn styling, and snap to currently shown grid. References: Prison Architect toolbar, a small paper-styled bottom button, simple line/rectangle sketches.
+Implementation choices: filled rectangles and dominant-axis one-visible-cell-wide lines. Left paint/right erase; cancel on Escape/focus loss/release over UI. Dominant visible grid level becomes the snap interval and is frozen during a gesture. Data is stored independently as disjoint base-coordinate rectangles. UI, preview, and floor colors/widths exposed. No new save/load or undo scope in this milestone.
+Validation: rectangle subtraction, reversed drags, snap detail, toolbar selection, existing camera suite, Godot import and startup.
