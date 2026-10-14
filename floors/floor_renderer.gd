@@ -68,7 +68,15 @@ func _draw() -> void:
 		_cache_key = key
 		_dirty = false
 	for band in _bands:
-		draw_colored_polygon(band, fill_color)
+		# Triangulate thin curve bands near their own origin. Absolute world
+		# coordinates cause float cancellation even for valid convex quads.
+		var origin := band[0]
+		var local := band.duplicate()
+		for index in range(local.size()):
+			local[index] -= origin
+		draw_set_transform(origin)
+		draw_colored_polygon(local, fill_color)
+		draw_set_transform(Vector2.ZERO)
 	_outline_ink.configure(_rounded, ink_width / zoom_scale, ink_color, true)
 	for loop in _rounded:
 		if hand_drawn_amount > 0 and pencil_opacity > 0:

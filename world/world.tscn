@@ -15,6 +15,8 @@
 [ext_resource type="Resource" path="res://floors/tools/line_handler.tres" id="10"]
 [ext_resource type="Resource" path="res://floors/tools/square_handler.tres" id="11"]
 
+[ext_resource type="Resource" path="res://floors/tools/circle_handler.tres" id="12"]
+
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_fyhu2"]
 shader = ExtResource("1_ai45w")
 shader_parameter/paper_color = Color(0.9647059, 0.94509804, 0.90588236, 1)
@@ -58,7 +60,7 @@ script = ExtResource("4")
 
 [node name="ConstructionPreview" type="Node2D" parent="." unique_id=1904252962]
 script = ExtResource("5")
-tool_handlers = Array[ExtResource("9")]([ExtResource("10"), ExtResource("11")])
+tool_handlers = Array[ExtResource("9")]([ExtResource("10"), ExtResource("11"), ExtResource("12")])
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=1090338365]
 script = ExtResource("3")
