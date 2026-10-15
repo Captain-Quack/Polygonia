@@ -23,7 +23,7 @@ func propose_edit(context: ConstructionContext,gesture: ConstructionGesture) -> 
 		elif absf(candidate-distance)<0.00001:ambiguous=true
 	if not gesture.erase:
 		for c in context.model.structures.get_circles():
-			var projection=CircleBoundary.project(context.model.structures.circle_points(c),pointer)
+			var projection=context.model.structures.project_circle(c,pointer)
 			var candidate=projection.distance
 			if candidate>tolerance:continue
 			if candidate<distance-0.00001:
@@ -39,7 +39,7 @@ func propose_edit(context: ConstructionContext,gesture: ConstructionGesture) -> 
 			result.command=StructureCommand.remove_door(nearest.id)
 		elif circle_target:
 			var points=context.model.structures.circle_points(nearest)
-			var projection=CircleBoundary.project(points,pointer)
+			var projection=context.model.structures.project_circle(nearest,pointer)
 			# Local quarter-cell spacing along the boundary, independent of zoom.
 			var center=roundf(projection.offset*4.0)*.25
 			var start=fposmod(center-.5,CircleBoundary.length(points,true))
@@ -53,7 +53,7 @@ func propose_edit(context: ConstructionContext,gesture: ConstructionGesture) -> 
 			var start=int(ceil(coordinate-1.0))
 			a=Vector2(start,nearest.a.y) if horizontal else Vector2(nearest.a.x,start)
 			b=a+(Vector2.RIGHT if horizontal else Vector2.DOWN)
-			result.command=StructureCommand.place_door(Vector2i(a),Vector2i(b))
+			result.command=StructureCommand.place_door(StructureData.coordinate(a),StructureData.coordinate(b))
 		var evaluated=result.command.evaluate(context.model)
 		result.reason=evaluated.reason;result.valid=result.reason==&""
 	if path.is_empty():path=PackedVector2Array([a,b])

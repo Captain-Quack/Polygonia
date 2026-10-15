@@ -6,3 +6,6 @@ var start := Vector2i.ZERO
 var end := Vector2i.ZERO
 var step := 1
 var erase := false
+var control_points: Array=[]
+var raw_points: Array=[]
+var alternate:=false

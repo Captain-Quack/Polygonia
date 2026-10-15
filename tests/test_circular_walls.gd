@@ -7,12 +7,12 @@ func run() -> void:
 	var world=load("res://world/world.tscn").instantiate();root.add_child(world)
 	for i in range(5):await process_frame
 	var editor=world.get_node("ConstructionPreview")
-	check(editor.handlers.has(&"circular_wall"),"Circular Wall tool registered")
-	if not editor.handlers.has(&"circular_wall"):
+	check(editor.handlers.has(&"arc_wall"),"Arc Wall tool registered; legacy full-circle geometry retained")
+	if not editor.handlers.has(&"arc_wall"):
 		world.queue_free();await process_frame;quit(1);return
 	var model=world.get_node("WorldModel")
-	editor.select_tool(&"circular_wall")
-	editor.commit_stroke(Vector2i.ZERO,Vector2i(5,0),false)
+	editor.select_tool(&"arc_wall")
+	model.execute(StructureCommand.circle(Vector2i.ZERO,5,64))
 	var region_id=model.regions.locate(Vector2.ZERO).region_id
 	check(region_id>0,"circular wall encloses room")
 	check(absf(model.regions.region(region_id).area-PI*25)<.2,"circular room area")
@@ -43,8 +43,8 @@ func run() -> void:
 	proposal=door.propose_edit(context,gesture)
 	check(proposal.valid and absf(CircleBoundary.length(proposal.preview.paths[0])/context.cell_size-1)<.00001,"same door tool previews curved one-cell aperture at coarse zoom")
 	var stale_command=proposal.command
-	editor.select_tool(&"circular_wall");editor.commit_stroke(Vector2i.ZERO,Vector2i(5,0),true)
-	check(model.structures.get_circles().is_empty() and model.structures.get_doors().is_empty(),"Circular Wall erasure removes loop and attached doors")
+	editor.select_tool(&"arc_wall");model.execute(StructureCommand.circle(Vector2i.ZERO,5,64,true))
+	check(model.structures.get_circles().is_empty() and model.structures.get_doors().is_empty(),"Full-circle erasure removes loop and attached doors")
 	check(not model.execute(stale_command).accepted,"stale curved door refuses deleted host")
 	check(not model.floors.contains_point(Vector2.ZERO),"circular wall tool does not paint floors")
 	world.queue_free();await process_frame

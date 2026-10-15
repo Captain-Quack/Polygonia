@@ -26,7 +26,7 @@
 
 [ext_resource type="Script" path="res://world/spatial_inspector.gd" id="18"]
 
-[ext_resource type="Resource" path="res://structures/tools/circular_wall_handler.tres" id="19"]
+[ext_resource type="Resource" path="res://structures/tools/arc_wall_handler.tres" id="19"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_fyhu2"]
 shader = ExtResource("1_ai45w")

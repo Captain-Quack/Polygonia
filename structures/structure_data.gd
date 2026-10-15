@@ -18,15 +18,29 @@ func get_circle(id: int) -> Dictionary:
 	return {}
 func circle_points(c: Dictionary) -> PackedVector2Array:
 	return CircleBoundary.points(Vector2(c.center),c.radius,c.segments)
+func circle_ranges(c: Dictionary) -> Array:
+	return c.get("ranges",[[0.0,CircleBoundary.length(circle_points(c),true)]]).duplicate(true)
+func circle_paths(c: Dictionary) -> Array:
+	var result: Array=[];var points=circle_points(c)
+	for span in circle_ranges(c):result.append(CircleBoundary.slice(points,span[0],span[1]-span[0]))
+	return result
+func project_circle(c: Dictionary,pointer: Vector2) -> Dictionary:
+	var points=circle_points(c);var best={"distance":INF,"offset":0.0,"point":Vector2.ZERO}
+	for span in circle_ranges(c):
+		var path=CircleBoundary.slice(points,span[0],span[1]-span[0])
+		var projected=CircleBoundary.project(path,pointer,false)
+		if projected.distance<best.distance:
+			best=projected;best.offset=fposmod(span[0]+projected.offset,CircleBoundary.length(points,true))
+	return best
 func get_wall_segments() -> Array:
 	var result=get_walls()
 	for c in _circles:
 		var points=circle_points(c)
-		var offset=0.0
-		for i in range(points.size()):
-			var a=points[i];var b=points[(i+1)%points.size()]
-			result.append({"id":c.id,"circle_id":c.id,"offset":offset,"a":a,"b":b})
-			offset+=a.distance_to(b)
+		for span in circle_ranges(c):
+			var path=CircleBoundary.slice(points,span[0],span[1]-span[0]);var offset=span[0]
+			for i in range(path.size()-1):
+				result.append({"id":c.id,"circle_id":c.id,"offset":offset,"a":path[i],"b":path[i+1]})
+				offset+=path[i].distance_to(path[i+1])
 	return result
 static func door_path(d: Dictionary) -> PackedVector2Array:
 	return d.get("path",PackedVector2Array([Vector2(d.a),Vector2(d.b)]))
@@ -60,26 +74,28 @@ func allocate_id() -> int:
 	return id
 static func in_range(p: Vector2) -> bool:
 	return is_finite(p.x) and is_finite(p.y) and absf(p.x) <= LIMIT and absf(p.y) <= LIMIT
-static func valid_segment(a: Vector2i,b: Vector2i) -> bool:
-	return in_range(Vector2(a)) and in_range(Vector2(b)) and a != b and (a.x == b.x or a.y == b.y)
-static func canonical(a: Vector2i,b: Vector2i) -> Array:
+static func coordinate(point: Vector2):
+	return Vector2i(point) if point.x==floorf(point.x) and point.y==floorf(point.y) else point
+static func valid_segment(a,b) -> bool:
+	return in_range(Vector2(a)) and in_range(Vector2(b)) and Vector2(a) != Vector2(b) and (a.x == b.x or a.y == b.y)
+static func canonical(a,b) -> Array:
 	return [a,b] if a.x < b.x or (a.x == b.x and a.y < b.y) else [b,a]
 static func collinear(a: Dictionary,b: Dictionary) -> bool:
 	return (a.a.y == a.b.y and b.a.y == b.b.y and a.a.y == b.a.y) or (a.a.x == a.b.x and b.a.x == b.b.x and a.a.x == b.a.x)
-static func low(r: Dictionary) -> int: return r.a.x if r.a.y == r.b.y else r.a.y
-static func high(r: Dictionary) -> int: return r.b.x if r.a.y == r.b.y else r.b.y
-static func subrun(r: Dictionary,lo: int,hi: int) -> Dictionary:
+static func low(r: Dictionary) -> float: return r.a.x if r.a.y == r.b.y else r.a.y
+static func high(r: Dictionary) -> float: return r.b.x if r.a.y == r.b.y else r.b.y
+static func subrun(r: Dictionary,lo: float,hi: float) -> Dictionary:
 	var s = r.duplicate(true)
 	if r.a.y == r.b.y:
-		s.a = Vector2i(lo,r.a.y); s.b = Vector2i(hi,r.a.y)
+		s.a = coordinate(Vector2(lo,r.a.y)); s.b = coordinate(Vector2(hi,r.a.y))
 	else:
-		s.a = Vector2i(r.a.x,lo); s.b = Vector2i(r.a.x,hi)
+		s.a = coordinate(Vector2(r.a.x,lo)); s.b = coordinate(Vector2(r.a.x,hi))
 	return s
 func normalize_walls() -> void:
 	var old = _walls.duplicate(true)
 	var groups := {}
 	for r in _walls:
-		var key = "h:%d" % r.a.y if r.a.y == r.b.y else "v:%d" % r.a.x
+		var key = "h:%.9f" % r.a.y if r.a.y == r.b.y else "v:%.9f" % r.a.x
 		if not groups.has(key): groups[key] = []
 		groups[key].append(r)
 	var result: Array = []
@@ -90,12 +106,12 @@ func normalize_walls() -> void:
 		var merged: Array = []
 		for r in runs:
 			if not merged.is_empty() and low(r)<=high(merged[-1]):
-				merged[-1] = subrun(merged[-1],low(merged[-1]),maxi(high(merged[-1]),high(r)))
+				merged[-1] = subrun(merged[-1],low(merged[-1]),maxf(high(merged[-1]),high(r)))
 			else: merged.append(r.duplicate(true))
 		for r in merged:
 			r.id = 0
 			for previous in old:
-				if previous.a == r.a and previous.b == r.b and previous.id > 0:
+				if Vector2(previous.a) == Vector2(r.a) and Vector2(previous.b) == Vector2(r.b) and previous.id > 0:
 					r.id = previous.id; break
 			if r.id == 0: r.id = allocate_id()
 			result.append(r)
@@ -120,8 +136,8 @@ func validate() -> StringName:
 				var h = d if d.a.y == d.b.y else w
 				var v = w if d.a.y == d.b.y else d
 				if v.a.x >= h.a.x and v.a.x <= h.b.x and h.a.y >= v.a.y and h.a.y <= v.b.y:
-					var p = Vector2i(v.a.x,h.a.y)
-					if p != d.a and p != d.b: return &"DOOR_INTERSECTION"
+					var p = Vector2(v.a.x,h.a.y)
+					if p != Vector2(d.a) and p != Vector2(d.b): return &"DOOR_INTERSECTION"
 		if not supported: return &"UNSUPPORTED_DOOR"
 		for j in range(i):
 			var other = _doors[j]
@@ -136,13 +152,22 @@ func validate() -> StringName:
 		ids[c.id]=true
 		if c.radius<1 or c.radius!=floorf(c.radius) or not is_finite(c.radius) or c.segments<64 or c.segments>512 or c.segments%4!=0:return &"INVALID_CIRCLE"
 		if not in_range(Vector2(c.center)-Vector2.ONE*c.radius) or not in_range(Vector2(c.center)+Vector2.ONE*c.radius):return &"OUT_OF_RANGE"
+		if c.has("ranges"):
+			var total=CircleBoundary.length(circle_points(c),true)
+			if c.ranges.is_empty():return &"INVALID_ARC"
+			var previous=-1.0
+			for span in c.ranges:
+				if span[0]<0 or span[1]>total or span[1]-span[0]<=ArcIntervals.EPS or span[0]<=previous+ArcIntervals.EPS:return &"INVALID_ARC"
+				previous=span[1]
 	for d in _doors:
 		if not d.has("circle_id"):continue
 		if d.id<=0 or ids.has(d.id) or d.id>=next_id:return &"INVALID_ID"
 		ids[d.id]=true
 		var c=get_circle(d.circle_id)
 		if c.is_empty():return &"UNSUPPORTED_DOOR"
-		if not is_finite(d.offset) or d.offset<0 or d.offset>=CircleBoundary.length(circle_points(c),true):return &"INVALID_APERTURE"
+		var total=CircleBoundary.length(circle_points(c),true)
+		if not is_finite(d.offset) or d.offset<0 or d.offset>=total:return &"INVALID_APERTURE"
+		if ArcIntervals.overlap(circle_ranges(c),ArcIntervals.wrapped(d.offset,1.0,total))<1.0-ArcIntervals.EPS:return &"UNSUPPORTED_DOOR"
 	var doors=get_doors()
 	var segments=get_wall_segments()
 	for i in range(doors.size()):

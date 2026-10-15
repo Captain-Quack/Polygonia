@@ -29,6 +29,8 @@ var erasing := false
 var step_cells := 1
 var start := Vector2i.ZERO
 var endpoint := Vector2i.ZERO
+var control_points: Array=[]
+var raw_points: Array=[]
 @onready var grid = get_parent().get_node("GridRenderer")
 @onready var camera = get_parent().get_node("Camera2D")
 @onready var renderer = get_parent().get_node("FloorRenderer")
@@ -82,6 +84,8 @@ func select_tool(value: StringName) -> void:
 	if tool != value:
 		cancel()
 		tool = value
+	var hint=get_parent().get_node_or_null("CanvasLayer/FloorHint")
+	if hint!=null:hint.text=handlers[tool].instructions() if handlers.has(tool) else "Select a construction tool"
 
 func visible_step() -> int:
 	var base_pixels: float = maxf(grid.base_cell_size, 1.0) * camera.zoom.x
@@ -102,6 +106,11 @@ func make_proposal(a: Vector2i,b: Vector2i,erase: bool) -> ConstructionProposal:
 	gesture.start=a;gesture.end=b;gesture.step=step_cells;gesture.erase=erase
 	gesture.raw_start=raw_start if dragging else Vector2(a)
 	gesture.raw_end=context.pointer_base if dragging else Vector2(b)
+	gesture.control_points=control_points.duplicate()
+	gesture.raw_points=raw_points.duplicate()
+	gesture.alternate=Input.is_physical_key_pressed(KEY_SHIFT)
+	if gesture.control_points.size()<handlers[tool].control_point_count():
+		gesture.control_points.append(b);gesture.raw_points.append(gesture.raw_end)
 	return handlers[tool].propose_edit(context,gesture)
 
 func commit_stroke(a: Vector2i,b: Vector2i,erase: bool) -> void:
@@ -115,6 +124,7 @@ func set_enabled(value: bool) -> void:
 
 func cancel() -> void:
 	dragging = false
+	control_points.clear();raw_points.clear()
 	current_proposal=null
 	if is_instance_valid(_preview_ink):
 		_preview_ink.configure([], 1.0, Color.WHITE)
@@ -134,6 +144,16 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and event.keycode == KEY_ESCAPE:
 		cancel()
 		get_viewport().set_input_as_handled()
+	elif event is InputEventMouseButton and handlers.has(tool) and handlers[tool].control_point_count()>2:
+		if event.button_index in [MOUSE_BUTTON_LEFT,MOUSE_BUTTON_RIGHT]:
+			if event.pressed:
+				if get_viewport().gui_get_hovered_control()!=null:
+					cancel();return
+				if event.button_index!=(MOUSE_BUTTON_RIGHT if erasing else MOUSE_BUTTON_LEFT):
+					cancel();get_viewport().set_input_as_handled();return
+				advance_control_point(snap(get_global_mouse_position()),get_global_mouse_position()/grid.base_cell_size)
+			elif get_viewport().gui_get_hovered_control()!=null:cancel()
+			get_viewport().set_input_as_handled()
 	elif event is InputEventMouseButton and not event.pressed and event.button_index == (MOUSE_BUTTON_RIGHT if erasing else MOUSE_BUTTON_LEFT):
 		# Releasing over UI cancels rather than painting underneath it.
 		if get_viewport().gui_get_hovered_control() == null:
@@ -148,15 +168,30 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT]:
 		if Input.is_physical_key_pressed(KEY_SPACE) or camera._drag_button != 0:
 			return
-		dragging = true
-		erasing = event.button_index == MOUSE_BUTTON_RIGHT
-		step_cells = visible_step() if handlers[tool].snap_policy()==&"visible_grid" else 1
-		raw_start=get_global_mouse_position()/grid.base_cell_size
-		start = snap(get_global_mouse_position())
-		endpoint = start
-		camera.construction_active = true
-		camera._target_zoom = camera.zoom.x
+		var step=visible_step() if handlers[tool].snap_policy()==&"visible_grid" else 1
+		step_cells=step
+		begin_gesture(snap(get_global_mouse_position()),event.button_index==MOUSE_BUTTON_RIGHT,get_global_mouse_position()/grid.base_cell_size,step)
 		get_viewport().set_input_as_handled()
+
+func begin_gesture(point: Vector2i,remove: bool,raw: Vector2,step: int) -> void:
+	current_proposal=null
+	dragging=true;erasing=remove;step_cells=step;raw_start=raw
+	start=point;endpoint=point;control_points=[point];raw_points=[raw]
+	camera.construction_active=true;camera._target_zoom=camera.zoom.x
+
+func advance_control_point(point: Vector2i,raw: Vector2) -> void:
+	if not dragging or not handlers.has(tool):return
+	control_points.append(point);raw_points.append(raw);endpoint=point;current_proposal=null
+	if control_points.size()>=handlers[tool].control_point_count():
+		# The clicked raw position is authoritative, not the next frame's pointer.
+		var gesture:=ConstructionGesture.new()
+		gesture.start=start;gesture.end=endpoint;gesture.step=step_cells;gesture.erase=erasing
+		gesture.control_points=control_points.duplicate();gesture.raw_points=raw_points.duplicate()
+		gesture.raw_start=raw_start;gesture.raw_end=raw;gesture.alternate=Input.is_physical_key_pressed(KEY_SHIFT)
+		var proposal=handlers[tool].propose_edit(construction_context(),gesture)
+		if proposal.valid:construction_context().model.execute(proposal.command)
+		cancel()
+	queue_redraw()
 
 func _draw() -> void:
 	if not dragging:
@@ -167,7 +202,7 @@ func _draw() -> void:
 		return
 	if current_proposal==null:current_proposal=make_proposal(start,endpoint,erasing)
 	var geometry: Dictionary=current_proposal.preview
-	if not current_proposal.valid:
+	if not current_proposal.valid and not geometry.get("pending",false):
 		color=erase_preview_color;ink=erase_preview_ink
 	for polygon in geometry.get("fills", []):
 		draw_colored_polygon(polygon, color)

@@ -11,33 +11,48 @@ static func encode(data: StructureData) -> Dictionary:
 			continue
 		doors.append({"id":r.id,"a":[r.a.x,r.a.y],"b":[r.b.x,r.b.y],"state":str(r.state),"locked":r.locked})
 	var result={"version":1,"next_id":data.next_id,"walls":walls,"doors":doors}
+	for record in walls+doors:
+		if not record.has("a"):continue
+		if not point(record.a) or not point(record.b):result.version=3
 	if not data.get_circles().is_empty():
-		result.version=2;result.circles=[]
-		for c in data.get_circles():result.circles.append({"id":c.id,"center":[c.center.x,c.center.y],"radius":c.radius,"segments":c.segments})
+		result.version=maxi(result.version,2);result.circles=[]
+		for c in data.get_circles():
+			var record={"id":c.id,"center":[c.center.x,c.center.y],"radius":c.radius,"segments":c.segments}
+			if c.has("ranges"):record.ranges=c.ranges.duplicate(true);result.version=3
+			result.circles.append(record)
+	if result.version>=2 and not result.has("circles"):result.circles=[]
 	return result
+static func number(value) -> bool:
+	return (value is int or value is float) and is_finite(float(value))
 static func integer(value) -> bool:
 	return (value is int or value is float) and is_finite(float(value)) and float(value)==floor(float(value)) and absf(float(value))<9007199254740991.0
-static func point(value) -> bool:
-	return value is Array and value.size()==2 and integer(value[0]) and integer(value[1]) and absf(float(value[0]))<=StructureData.LIMIT and absf(float(value[1]))<=StructureData.LIMIT
+static func point(value,fractional: bool=false) -> bool:
+	return value is Array and value.size()==2 and number(value[0]) and number(value[1]) and (fractional or (integer(value[0]) and integer(value[1]))) and absf(float(value[0]))<=StructureData.LIMIT and absf(float(value[1]))<=StructureData.LIMIT
 static func decode(payload: Dictionary) -> Dictionary:
 	var bad := {"valid":false,"reason":&"INVALID_PAYLOAD","data":null}
-	if payload.get("version") not in [1,2] or not integer(payload.get("next_id")) or payload.next_id<1: return bad
+	if payload.get("version") not in [1,2,3] or not integer(payload.get("next_id")) or payload.next_id<1: return bad
 	if not payload.get("walls") is Array or not payload.get("doors") is Array: return bad
 	var data := StructureData.new()
 	data.next_id = int(payload.next_id)
-	if payload.version==2:
+	if payload.version>=2:
 		if not payload.get("circles") is Array:return bad
 		for c in payload.circles:
 			if not c is Dictionary or not integer(c.get("id")) or not point(c.get("center")) or not integer(c.get("radius")) or not integer(c.get("segments")):return bad
-			data._circles.append({"id":int(c.id),"center":Vector2i(c.center[0],c.center[1]),"radius":float(c.radius),"segments":int(c.segments)})
+			var record={"id":int(c.id),"center":Vector2i(c.center[0],c.center[1]),"radius":float(c.radius),"segments":int(c.segments)}
+			if c.has("ranges"):
+				if payload.version<3 or not c.ranges is Array:return bad
+				for span in c.ranges:
+					if not span is Array or span.size()!=2 or not number(span[0]) or not number(span[1]):return bad
+				record.ranges=c.ranges.duplicate(true)
+			data._circles.append(record)
 	for kind in ["walls","doors"]:
 		for r in payload[kind]:
 			if kind=="doors" and r is Dictionary and r.has("circle_id"):
-				if payload.version!=2 or not integer(r.get("id")) or not integer(r.circle_id) or not (r.get("offset") is float or r.get("offset") is int) or not is_finite(float(r.offset)) or not r.get("state") is String or not r.get("locked") is bool:return bad
+				if payload.version<2 or not integer(r.get("id")) or not integer(r.circle_id) or not (r.get("offset") is float or r.get("offset") is int) or not is_finite(float(r.offset)) or not r.get("state") is String or not r.get("locked") is bool:return bad
 				data._doors.append({"id":int(r.id),"a":Vector2.ZERO,"b":Vector2.ZERO,"circle_id":int(r.circle_id),"offset":float(r.offset),"state":StringName(r.state),"locked":r.locked})
 				continue
-			if not r is Dictionary or not integer(r.get("id")) or not point(r.get("a")) or not point(r.get("b")): return bad
-			var record = {"id":int(r.id),"a":Vector2i(r.a[0],r.a[1]),"b":Vector2i(r.b[0],r.b[1])}
+			if not r is Dictionary or not integer(r.get("id")) or not point(r.get("a"),payload.version>=3) or not point(r.get("b"),payload.version>=3): return bad
+			var record = {"id":int(r.id),"a":StructureData.coordinate(Vector2(r.a[0],r.a[1])),"b":StructureData.coordinate(Vector2(r.b[0],r.b[1]))}
 			if kind == "walls":
 				if r.get("material") != "solid": return bad
 				record.material = &"solid"

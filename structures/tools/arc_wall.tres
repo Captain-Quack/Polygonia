@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="ConstructionToolDefinition" load_steps=3 format=3]
+[ext_resource type="Script" path="res://floors/construction_tool_definition.gd" id="1"]
+[ext_resource type="Texture2D" path="res://structures/tools/arc_wall.svg" id="2"]
+[resource]
+script = ExtResource("1")
+tool_id = &"arc_wall"
+display_name = "Arc Wall"
+tooltip = "Click center, radius/start, end. Shift: other sweep. End at start: full circle. Right-click the three points to erase. Escape: cancel."
+icon = ExtResource("2")

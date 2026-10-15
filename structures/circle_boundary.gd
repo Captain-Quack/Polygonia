@@ -30,10 +30,10 @@ static func slice(path: PackedVector2Array,start: float,width: float) -> PackedV
 			width-=take;cursor=0.0
 			if width<0.000001:return result
 	return result
-static func project(path: PackedVector2Array,p: Vector2) -> Dictionary:
+static func project(path: PackedVector2Array,p: Vector2,closed: bool=true) -> Dictionary:
 	var best={"distance":INF,"offset":0.0,"point":Vector2.ZERO}
 	var offset=0.0
-	for i in range(path.size()):
+	for i in range(path.size() if closed else path.size()-1):
 		var a=path[i];var b=path[(i+1)%path.size()]
 		var q=Geometry2D.get_closest_point_to_segment(p,a,b)
 		var distance=p.distance_to(q)

@@ -1,8 +1,8 @@
 class_name StructureCommand
 extends RefCounted
 var kind: StringName
-var a := Vector2i.ZERO
-var b := Vector2i.ZERO
+var a = Vector2i.ZERO
+var b = Vector2i.ZERO
 var erase := false
 var door_id := 0
 var actor_id := 0
@@ -10,9 +10,10 @@ var radius:=0.0
 var segments:=64
 var circle_id:=0
 var offset:=0.0
-static func wall(start: Vector2i,end: Vector2i,remove: bool) -> StructureCommand:
-	var c := StructureCommand.new(); c.kind = &"WALL"; c.a=start; c.b=end; c.erase=remove; return c
-static func place_door(start: Vector2i,end: Vector2i) -> StructureCommand:
+var arc_width:=0.0
+static func wall(start,end,remove: bool) -> StructureCommand:
+	var c := StructureCommand.new(); c.kind = &"WALL"; c.a=StructureData.coordinate(Vector2(start)); c.b=StructureData.coordinate(Vector2(end)); c.erase=remove; return c
+static func place_door(start,end) -> StructureCommand:
 	var c := wall(start,end,false); c.kind = &"DOOR"; return c
 static func remove_door(id: int) -> StructureCommand:
 	var c := StructureCommand.new(); c.kind = &"REMOVE_DOOR"; c.door_id=id; return c
@@ -20,20 +21,40 @@ static func door_action(id: int,action: StringName,actor: int=0) -> StructureCom
 	var c := StructureCommand.new();c.kind=action;c.door_id=id;c.actor_id=actor;return c
 static func circle(center: Vector2i,size: float,count: int,remove: bool=false) -> StructureCommand:
 	var c:=StructureCommand.new();c.kind=&"CIRCLE";c.a=center;c.radius=size;c.segments=count;c.erase=remove;return c
+static func arc(center: Vector2i,size: float,count: int,start: float,width: float,remove: bool=false) -> StructureCommand:
+	var c=circle(center,size,count,remove);c.kind=&"ARC";c.offset=start;c.arc_width=width;return c
 static func circle_door(host_id: int,start: float) -> StructureCommand:
 	var c:=StructureCommand.new();c.kind=&"CIRCLE_DOOR";c.circle_id=host_id;c.offset=start;return c
 func evaluate(model) -> Dictionary:
 	var stage: StructureData = model.structures.copy()
 	var reason: StringName = &""
-	if kind==&"CIRCLE":
-		var existing: Dictionary={}
-		for c in stage.get_circles():
-			if c.center==a and c.radius==radius:existing=c;break
-		if erase:
-			if not existing.is_empty():
-				stage._circles=stage._circles.filter(func(c):return c.id!=existing.id)
-				stage._doors=stage._doors.filter(func(d):return d.get("circle_id",0)!=existing.id)
-		elif existing.is_empty():stage._circles.append({"id":stage.allocate_id(),"center":a,"radius":radius,"segments":segments})
+	if kind in [&"CIRCLE",&"ARC"]:
+		if not is_finite(radius) or radius<1 or radius!=floorf(radius) or segments<64 or segments>512 or segments%4!=0:return {"reason":&"INVALID_CIRCLE","data":stage}
+		var index=-1
+		for i in range(stage._circles.size()):
+			if stage._circles[i].center==a and stage._circles[i].radius==radius:index=i;break
+		var source={"id":0,"center":a,"radius":radius,"segments":segments} if index<0 else stage._circles[index]
+		var total=CircleBoundary.length(stage.circle_points(source),true)
+		var width=total if kind==&"CIRCLE" else arc_width
+		if not is_finite(offset) or not is_finite(width) or width<=ArcIntervals.EPS or width>total+ArcIntervals.EPS:return {"reason":&"INVALID_ARC","data":stage}
+		var cut=ArcIntervals.wrapped(offset,width,total)
+		var before: Array=[] if index<0 else stage.circle_ranges(source)
+		var after=ArcIntervals.subtract(before,cut) if erase else ArcIntervals.merge(before+cut)
+		if after==before:return {"reason":&"","data":stage}
+		if index<0:source.id=stage.allocate_id()
+		var retained: Array=[]
+		for d in stage._doors:
+			if d.get("circle_id",0)!=source.id:retained.append(d);continue
+			var supported=ArcIntervals.overlap(after,ArcIntervals.wrapped(d.offset,1.0,total))
+			if supported>=1.0-ArcIntervals.EPS:retained.append(d)
+			elif supported>ArcIntervals.EPS:return {"reason":&"PARTIAL_DOOR_SUPPORT","data":stage}
+		stage._doors=retained
+		if after.is_empty():stage._circles.remove_at(index)
+		else:
+			if after.size()==1 and after[0][0]==0 and absf(after[0][1]-total)<ArcIntervals.EPS:source.erase("ranges")
+			else:source.ranges=after
+			if index<0:stage._circles.append(source)
+			else:stage._circles[index]=source
 	elif kind==&"CIRCLE_DOOR":
 		stage._doors.append({"id":stage.allocate_id(),"a":Vector2.ZERO,"b":Vector2.ZERO,"circle_id":circle_id,"offset":offset,"state":&"CLOSED","locked":false})
 	elif kind in [&"WALL",&"DOOR"]:
