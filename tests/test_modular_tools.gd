@@ -28,7 +28,7 @@ func run() -> void:
 	await settle()
 	var editor = world.get_node("ConstructionPreview")
 	var menu = editor.menu
-	check(menu.categories.size() == 1, "Default category is visible as an Inspector resource in scene")
+	check(menu.categories.size() == 2, "Default category is visible as an Inspector resource in scene")
 	var extra := ConstructionCategoryDefinition.new()
 	extra.category_id = &"extra"
 	extra.title = "Extra tools"
@@ -39,7 +39,7 @@ func run() -> void:
 	extra.tools = [third]
 	menu.categories.append(extra)
 	await settle()
-	check(menu.buttons.size() == 4 and menu.category_buttons.size() == 2, "Third tool and second category appear without menu edits")
+	check(menu.buttons.size() == 6 and menu.category_buttons.size() == 3, "Third tool and second category appear without menu edits")
 	check(menu.buttons[&"third"].disabled and "No construction handler" in menu.buttons[&"third"].tooltip_text, "Unsupported tool disabled with explanation")
 	check(menu.buttons[&"third"].text == "Third tool", "Missing icon falls back to label")
 	var handler := TestHandler.new()
@@ -87,8 +87,8 @@ func run() -> void:
 	extra.tools.append(third)
 	menu.categories.append(extra)
 	await settle()
-	check(menu.buttons.size() == 4 and menu.configuration_warnings.size() == 3, "Empty and duplicate IDs are skipped with warnings")
-	check(menu.buttons.keys() == [&"line", &"square", &"circle", &"third"], "Definitions preserve tool ordering")
+	check(menu.buttons.size() == 6 and menu.configuration_warnings.size() == 3, "Empty and duplicate IDs are skipped with warnings")
+	check(menu.buttons.keys() == [&"line", &"square", &"circle", &"wall", &"door", &"third"], "Definitions preserve tool ordering")
 	# Remove selected definition while dragging: fallback must cancel the stroke.
 	editor.dragging = true
 	editor.camera.construction_active = true
@@ -98,6 +98,8 @@ func run() -> void:
 	editor.unregister_handler(&"line")
 	editor.unregister_handler(&"square")
 	editor.unregister_handler(&"circle")
+	editor.unregister_handler(&"wall")
+	editor.unregister_handler(&"door")
 	check(editor.tool == &"", "No supported menu tools deactivates construction")
 	var press := InputEventMouseButton.new()
 	press.button_index = MOUSE_BUTTON_LEFT

@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="ConstructionToolDefinition" load_steps=3 format=3]
+[ext_resource type="Script" path="res://floors/construction_tool_definition.gd" id="1"]
+[ext_resource type="Texture2D" path="res://structures/tools/wall.svg" id="2"]
+[resource]
+script = ExtResource("1")
+tool_id = &"wall"
+display_name = "Wall"
+tooltip = "Drag a wall along grid edges; right-drag erases"
+icon = ExtResource("2")
