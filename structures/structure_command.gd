@@ -6,6 +6,10 @@ var b := Vector2i.ZERO
 var erase := false
 var door_id := 0
 var actor_id := 0
+var radius:=0.0
+var segments:=64
+var circle_id:=0
+var offset:=0.0
 static func wall(start: Vector2i,end: Vector2i,remove: bool) -> StructureCommand:
 	var c := StructureCommand.new(); c.kind = &"WALL"; c.a=start; c.b=end; c.erase=remove; return c
 static func place_door(start: Vector2i,end: Vector2i) -> StructureCommand:
@@ -14,10 +18,25 @@ static func remove_door(id: int) -> StructureCommand:
 	var c := StructureCommand.new(); c.kind = &"REMOVE_DOOR"; c.door_id=id; return c
 static func door_action(id: int,action: StringName,actor: int=0) -> StructureCommand:
 	var c := StructureCommand.new();c.kind=action;c.door_id=id;c.actor_id=actor;return c
+static func circle(center: Vector2i,size: float,count: int,remove: bool=false) -> StructureCommand:
+	var c:=StructureCommand.new();c.kind=&"CIRCLE";c.a=center;c.radius=size;c.segments=count;c.erase=remove;return c
+static func circle_door(host_id: int,start: float) -> StructureCommand:
+	var c:=StructureCommand.new();c.kind=&"CIRCLE_DOOR";c.circle_id=host_id;c.offset=start;return c
 func evaluate(model) -> Dictionary:
 	var stage: StructureData = model.structures.copy()
 	var reason: StringName = &""
-	if kind in [&"WALL",&"DOOR"]:
+	if kind==&"CIRCLE":
+		var existing: Dictionary={}
+		for c in stage.get_circles():
+			if c.center==a and c.radius==radius:existing=c;break
+		if erase:
+			if not existing.is_empty():
+				stage._circles=stage._circles.filter(func(c):return c.id!=existing.id)
+				stage._doors=stage._doors.filter(func(d):return d.get("circle_id",0)!=existing.id)
+		elif existing.is_empty():stage._circles.append({"id":stage.allocate_id(),"center":a,"radius":radius,"segments":segments})
+	elif kind==&"CIRCLE_DOOR":
+		stage._doors.append({"id":stage.allocate_id(),"a":Vector2.ZERO,"b":Vector2.ZERO,"circle_id":circle_id,"offset":offset,"state":&"CLOSED","locked":false})
+	elif kind in [&"WALL",&"DOOR"]:
 		if not StructureData.valid_segment(a,b): return {"reason":&"INVALID_SEGMENT","data":stage}
 		var ends = StructureData.canonical(a,b)
 		var run = {"id":0,"a":ends[0],"b":ends[1],"material":&"solid"}
@@ -33,7 +52,7 @@ func evaluate(model) -> Dictionary:
 				if StructureData.high(w)>StructureData.high(run):
 					var part = StructureData.subrun(w,StructureData.high(run),StructureData.high(w)); part.id=0; remaining.append(part)
 			stage._walls=remaining
-			stage._doors=stage._doors.filter(func(d): return not (StructureData.collinear(run,d) and StructureData.low(run)<=StructureData.low(d) and StructureData.high(run)>=StructureData.high(d)))
+			stage._doors=stage._doors.filter(func(d): return d.has("circle_id") or not (StructureData.collinear(run,d) and StructureData.low(run)<=StructureData.low(d) and StructureData.high(run)>=StructureData.high(d)))
 		else: stage._walls.append(run)
 		stage.normalize_walls()
 	elif kind == &"REMOVE_DOOR":
@@ -51,7 +70,7 @@ func evaluate(model) -> Dictionary:
 					if d.locked:reason=&"LOCKED"
 					else:d.state=&"OPEN"
 				&"CLOSE":
-					if d.state==&"OPEN" and model.occupancy_query.is_valid() and model.occupancy_query.call({"a":Vector2(d.a),"b":Vector2(d.b),"radius":0.05,"id":d.id}):reason=&"OCCUPIED"
+					if d.state==&"OPEN" and model.occupancy_query.is_valid() and model.occupancy_query.call({"a":Vector2(stage.get_door(d.id).a),"b":Vector2(stage.get_door(d.id).b),"radius":0.05,"id":d.id,"path":StructureData.door_path(stage.get_door(d.id))}):reason=&"OCCUPIED"
 					else:d.state=&"CLOSED"
 				&"LOCK":
 					if d.state==&"OPEN":reason=&"CLOSE_BEFORE_LOCK"
@@ -75,7 +94,7 @@ func execute(model) -> StructureChange:
 	result.barrier_changed=result.topology_changed or kind in [&"OPEN",&"CLOSE"]
 	result.traversal_changed=true
 	result.entity_id=door_id
-	if kind==&"DOOR":result.entity_id=evaluated.data._doors[-1].id
+	if kind in [&"DOOR",&"CIRCLE_DOOR"]:result.entity_id=evaluated.data._doors[-1].id
 	result.old_state=model.structures.get_door(result.entity_id)
 	result.new_state=evaluated.data.get_door(result.entity_id)
 	classify_change(result)
@@ -100,7 +119,7 @@ static func restore(model,change: StructureChange,undo: bool) -> StructureChange
 	result.new_state=target.data.get_door(result.entity_id)
 	for d in target.data.get_doors():
 		var current_door=model.structures.get_door(d.id)
-		if d.state==&"CLOSED" and not current_door.is_empty() and current_door.state==&"OPEN" and model.occupancy_query.is_valid() and model.occupancy_query.call({"a":Vector2(d.a),"b":Vector2(d.b),"radius":0.05,"id":d.id}):
+		if d.state==&"CLOSED" and not current_door.is_empty() and current_door.state==&"OPEN" and model.occupancy_query.is_valid() and model.occupancy_query.call({"a":Vector2(d.a),"b":Vector2(d.b),"radius":0.05,"id":d.id,"path":StructureData.door_path(d)}):
 			result.accepted=false;result.reason=&"OCCUPIED";return result
 	classify_change(result)
 	model.install_structure(target.data,result)
@@ -108,16 +127,22 @@ static func restore(model,change: StructureChange,undo: bool) -> StructureChange
 
 static func classify_change(change: StructureChange) -> void:
 	var before=change.before_state;var after=change.after_state
-	var geometry_before=before.doors.map(func(d):return [d.id,d.a,d.b])
-	var geometry_after=after.doors.map(func(d):return [d.id,d.a,d.b])
-	change.topology_changed=before.walls!=after.walls or geometry_before!=geometry_after
+	var geometry_before=before.doors.map(func(d):return [d.id,d.get("a"),d.get("b"),d.get("circle_id"),d.get("offset")])
+	var geometry_after=after.doors.map(func(d):return [d.id,d.get("a"),d.get("b"),d.get("circle_id"),d.get("offset")])
+	change.topology_changed=before.walls!=after.walls or before.get("circles",[])!=after.get("circles",[]) or geometry_before!=geometry_after
 	change.barrier_changed=change.topology_changed or before.doors.map(func(d):return [d.id,d.state])!=after.doors.map(func(d):return [d.id,d.state])
 	change.traversal_changed=change.barrier_changed or before.doors!=after.doors
 	var points: Array=[]
 	for key in ["walls","doors"]:
 		for record in before[key]+after[key]:
 			if before[key].has(record) and after[key].has(record):continue
-			points.append(Vector2(record.a[0],record.a[1]));points.append(Vector2(record.b[0],record.b[1]))
+			if record.has("a"):
+				points.append(Vector2(record.a[0],record.a[1]));points.append(Vector2(record.b[0],record.b[1]))
+	# Circle bounds also cover any of their derived door paths.
+	if before.get("circles",[])!=after.get("circles",[]) or before.doors!=after.doors:
+		for c in before.get("circles",[])+after.get("circles",[]):
+			points.append(Vector2(c.center[0],c.center[1])-Vector2.ONE*c.radius)
+			points.append(Vector2(c.center[0],c.center[1])+Vector2.ONE*c.radius)
 	if not points.is_empty():
 		var bounds=Rect2(points[0],Vector2.ZERO)
 		for point in points:bounds=bounds.expand(point)

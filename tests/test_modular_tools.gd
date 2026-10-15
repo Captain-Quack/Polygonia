@@ -39,7 +39,7 @@ func run() -> void:
 	extra.tools = [third]
 	menu.categories.append(extra)
 	await settle()
-	check(menu.buttons.size() == 6 and menu.category_buttons.size() == 3, "Third tool and second category appear without menu edits")
+	check(menu.buttons.size() == 7 and menu.category_buttons.size() == 3, "Third tool and second category appear without menu edits")
 	check(menu.buttons[&"third"].disabled and "No construction handler" in menu.buttons[&"third"].tooltip_text, "Unsupported tool disabled with explanation")
 	check(menu.buttons[&"third"].text == "Third tool", "Missing icon falls back to label")
 	var handler := TestHandler.new()
@@ -87,8 +87,8 @@ func run() -> void:
 	extra.tools.append(third)
 	menu.categories.append(extra)
 	await settle()
-	check(menu.buttons.size() == 6 and menu.configuration_warnings.size() == 3, "Empty and duplicate IDs are skipped with warnings")
-	check(menu.buttons.keys() == [&"line", &"square", &"circle", &"wall", &"door", &"third"], "Definitions preserve tool ordering")
+	check(menu.buttons.size() == 7 and menu.configuration_warnings.size() == 3, "Empty and duplicate IDs are skipped with warnings")
+	check(menu.buttons.keys() == [&"line", &"square", &"circle", &"wall", &"circular_wall", &"door", &"third"], "Definitions preserve tool ordering")
 	# Remove selected definition while dragging: fallback must cancel the stroke.
 	editor.dragging = true
 	editor.camera.construction_active = true
@@ -99,6 +99,7 @@ func run() -> void:
 	editor.unregister_handler(&"square")
 	editor.unregister_handler(&"circle")
 	editor.unregister_handler(&"wall")
+	editor.unregister_handler(&"circular_wall")
 	editor.unregister_handler(&"door")
 	check(editor.tool == &"", "No supported menu tools deactivates construction")
 	var press := InputEventMouseButton.new()

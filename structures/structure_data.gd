@@ -4,21 +4,50 @@ extends RefCounted
 const LIMIT := 1000000
 var _walls: Array = []
 var _doors: Array = []
+var _circles: Array = []
 var next_id := 1
 var revision := 0
 var topology_revision := 0
 var barrier_revision := 0
 var traversal_revision := 0
 func get_walls() -> Array: return _walls.duplicate(true)
-func get_doors() -> Array: return _doors.duplicate(true)
+func get_circles() -> Array:return _circles.duplicate(true)
+func get_circle(id: int) -> Dictionary:
+	for c in _circles:
+		if c.id==id:return c.duplicate(true)
+	return {}
+func circle_points(c: Dictionary) -> PackedVector2Array:
+	return CircleBoundary.points(Vector2(c.center),c.radius,c.segments)
+func get_wall_segments() -> Array:
+	var result=get_walls()
+	for c in _circles:
+		var points=circle_points(c)
+		var offset=0.0
+		for i in range(points.size()):
+			var a=points[i];var b=points[(i+1)%points.size()]
+			result.append({"id":c.id,"circle_id":c.id,"offset":offset,"a":a,"b":b})
+			offset+=a.distance_to(b)
+	return result
+static func door_path(d: Dictionary) -> PackedVector2Array:
+	return d.get("path",PackedVector2Array([Vector2(d.a),Vector2(d.b)]))
+func get_doors() -> Array:
+	var result=_doors.duplicate(true)
+	for d in result:
+		if not d.has("circle_id"):continue
+		var c=get_circle(d.circle_id)
+		if c.is_empty():continue
+		d.path=CircleBoundary.slice(circle_points(c),d.offset,1.0)
+		d.a=d.path[0];d.b=d.path[-1]
+	return result
 func get_door(id: int) -> Dictionary:
-	for door in _doors:
+	for door in get_doors():
 		if door.id == id: return door.duplicate(true)
 	return {}
 func copy() -> StructureData:
 	var result := StructureData.new()
 	result._walls = get_walls()
-	result._doors = get_doors()
+	result._doors = _doors.duplicate(true)
+	result._circles = get_circles()
 	result.next_id = next_id
 	result.revision = revision
 	result.topology_revision = topology_revision
@@ -74,6 +103,7 @@ func normalize_walls() -> void:
 func validate() -> StringName:
 	var ids := {}
 	for r in _walls + _doors:
+		if r.has("circle_id"):continue
 		if not valid_segment(r.a,r.b) or r.a != canonical(r.a,r.b)[0]: return &"INVALID_SEGMENT"
 		if r.id <= 0 or ids.has(r.id) or r.id >= next_id: return &"INVALID_ID"
 		ids[r.id] = true
@@ -82,6 +112,7 @@ func validate() -> StringName:
 	for i in range(_doors.size()):
 		var d = _doors[i]
 		if d.state not in [&"OPEN",&"CLOSED"] or (d.state == &"OPEN" and d.locked): return &"INVALID_STATE"
+		if d.has("circle_id"):continue
 		var supported := false
 		for w in _walls:
 			if collinear(d,w) and low(w)<=low(d) and high(w)>=high(d): supported = true
@@ -94,5 +125,37 @@ func validate() -> StringName:
 		if not supported: return &"UNSUPPORTED_DOOR"
 		for j in range(i):
 			var other = _doors[j]
+			if other.has("circle_id"):continue
 			if collinear(d,other) and low(d)<=high(other) and low(other)<=high(d): return &"DOOR_OVERLAP"
+	var circle_keys: Dictionary={}
+	for c in _circles:
+		var key=[c.center,c.radius]
+		if circle_keys.has(key):return &"DUPLICATE_CIRCLE"
+		circle_keys[key]=true
+		if c.id<=0 or ids.has(c.id) or c.id>=next_id:return &"INVALID_ID"
+		ids[c.id]=true
+		if c.radius<1 or c.radius!=floorf(c.radius) or not is_finite(c.radius) or c.segments<64 or c.segments>512 or c.segments%4!=0:return &"INVALID_CIRCLE"
+		if not in_range(Vector2(c.center)-Vector2.ONE*c.radius) or not in_range(Vector2(c.center)+Vector2.ONE*c.radius):return &"OUT_OF_RANGE"
+	for d in _doors:
+		if not d.has("circle_id"):continue
+		if d.id<=0 or ids.has(d.id) or d.id>=next_id:return &"INVALID_ID"
+		ids[d.id]=true
+		var c=get_circle(d.circle_id)
+		if c.is_empty():return &"UNSUPPORTED_DOOR"
+		if not is_finite(d.offset) or d.offset<0 or d.offset>=CircleBoundary.length(circle_points(c),true):return &"INVALID_APERTURE"
+	var doors=get_doors()
+	var segments=get_wall_segments()
+	for i in range(doors.size()):
+		var d=doors[i];var path=door_path(d)
+		for k in range(path.size()-1):
+			for w in segments:
+				if w.id==d.get("circle_id",-1):continue
+				if not d.has("circle_id") and StructureData.collinear(d,w):continue
+				for point in SegmentGeometry.intersections(path[k],path[k+1],Vector2(w.a),Vector2(w.b)):
+					if point.distance_to(path[0])>SegmentGeometry.EPS and point.distance_to(path[-1])>SegmentGeometry.EPS:return &"DOOR_INTERSECTION"
+		for j in range(i):
+			var other=door_path(doors[j])
+			for k in range(path.size()-1):
+				for l in range(other.size()-1):
+					if not SegmentGeometry.intersections(path[k],path[k+1],other[l],other[l+1]).is_empty():return &"DOOR_OVERLAP"
 	return &""
