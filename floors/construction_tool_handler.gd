@@ -12,6 +12,12 @@ func preview_geometry(_a: Vector2i, _b: Vector2i, _step: int, _cell_size: float,
 	return {"paths": [], "fills": [], "closed": false, "use_line_width": false}
 
 ## New handlers can inspect world state; legacy handlers retain their existing API.
+func instructions() -> String:
+	return "Left-drag: paint · Right-drag: erase · Esc: cancel"
+
+func control_point_count() -> int:
+	return 2
+
 func snap_policy() -> StringName:
 	return &"visible_grid"
 

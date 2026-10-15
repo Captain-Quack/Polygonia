@@ -88,7 +88,7 @@ func run() -> void:
 	menu.categories.append(extra)
 	await settle()
 	check(menu.buttons.size() == 7 and menu.configuration_warnings.size() == 3, "Empty and duplicate IDs are skipped with warnings")
-	check(menu.buttons.keys() == [&"line", &"square", &"circle", &"wall", &"circular_wall", &"door", &"third"], "Definitions preserve tool ordering")
+	check(menu.buttons.keys() == [&"line", &"square", &"circle", &"wall", &"arc_wall", &"door", &"third"], "Definitions preserve tool ordering")
 	# Remove selected definition while dragging: fallback must cancel the stroke.
 	editor.dragging = true
 	editor.camera.construction_active = true
@@ -99,7 +99,7 @@ func run() -> void:
 	editor.unregister_handler(&"square")
 	editor.unregister_handler(&"circle")
 	editor.unregister_handler(&"wall")
-	editor.unregister_handler(&"circular_wall")
+	editor.unregister_handler(&"arc_wall")
 	editor.unregister_handler(&"door")
 	check(editor.tool == &"", "No supported menu tools deactivates construction")
 	var press := InputEventMouseButton.new()

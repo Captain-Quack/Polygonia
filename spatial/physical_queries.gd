@@ -24,7 +24,7 @@ func segments() -> Array:
 	for circle in model.structures.get_circles():
 		var points=model.structures.circle_points(circle)
 		var total=CircleBoundary.length(points,true)
-		var intervals: Array=[[0.0,total]]
+		var intervals: Array=model.structures.circle_ranges(circle)
 		for d in doors:
 			if d.get("circle_id",0)!=circle.id:continue
 			var cuts: Array=[[d.offset,minf(total,d.offset+1.0)]]
