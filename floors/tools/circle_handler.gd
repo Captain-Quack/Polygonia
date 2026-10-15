@@ -20,20 +20,7 @@ func circle_polygon(center: Vector2i, endpoint: Vector2i, step: int) -> PackedVe
 	# Sagitta determines chord error. Cap complexity and align cardinal samples.
 	var angle := acos(clampf(1.0 - maxf(target_chord_error_cells, 0.001) / radius, -1.0, 1.0))
 	var segments := clampi(int(ceil(PI / maxf(angle, 0.00001) / 4.0)) * 4, 64, maxi(64, max_segments / 4 * 4))
-	var points := PackedVector2Array()
-	for i in range(segments):
-		var offset := Vector2.from_angle(TAU * i / segments) * radius
-		# Exact cardinal extents make tangencies with grid-aligned shapes stable.
-		if i == 0:
-			offset = Vector2(radius, 0)
-		elif i == segments / 4:
-			offset = Vector2(0, radius)
-		elif i == segments / 2:
-			offset = Vector2(-radius, 0)
-		elif i == segments * 3 / 4:
-			offset = Vector2(0, -radius)
-		points.append(Vector2(center) + offset)
-	return points
+	return CircleBoundary.points(Vector2(center), radius, segments)
 
 func commit(data, a: Vector2i, b: Vector2i, step: int, erase: bool) -> void:
 	var polygon := circle_polygon(a, b, step)

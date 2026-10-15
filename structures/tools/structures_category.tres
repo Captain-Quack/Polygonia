@@ -1,10 +1,11 @@
-[gd_resource type="Resource" script_class="ConstructionCategoryDefinition" load_steps=5 format=3]
+[gd_resource type="Resource" script_class="ConstructionCategoryDefinition" load_steps=6 format=3]
 [ext_resource type="Script" path="res://floors/construction_category_definition.gd" id="1"]
 [ext_resource type="Script" path="res://floors/construction_tool_definition.gd" id="2"]
 [ext_resource type="Resource" path="res://structures/tools/wall.tres" id="3"]
 [ext_resource type="Resource" path="res://structures/tools/door.tres" id="4"]
+[ext_resource type="Resource" path="res://structures/tools/circular_wall.tres" id="5"]
 [resource]
 script = ExtResource("1")
 category_id = &"structures"
 title = "Structures"
-tools = Array[ExtResource("2")]([ExtResource("3"), ExtResource("4")])
+tools = Array[ExtResource("2")]([ExtResource("3"), ExtResource("5"), ExtResource("4")])

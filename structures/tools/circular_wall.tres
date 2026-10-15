@@ -1,0 +1,9 @@
+[gd_resource type="Resource" script_class="ConstructionToolDefinition" load_steps=3 format=3]
+[ext_resource type="Script" path="res://floors/construction_tool_definition.gd" id="1"]
+[ext_resource type="Texture2D" path="res://structures/tools/circular_wall.svg" id="2"]
+[resource]
+script = ExtResource("1")
+tool_id = &"circular_wall"
+display_name = "Circular Wall"
+tooltip = "Drag from the center to enclose a circle; right-drag the same circle to remove its wall and doors"
+icon = ExtResource("2")

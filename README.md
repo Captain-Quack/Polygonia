@@ -118,3 +118,13 @@ Storage uses sparse orthogonal segments and integer endpoints within ±1,000,000
 `StructureCodec` provides validated version-1 serialization; command snapshots support internal restore/redo. A player save/load UI, global undo stack, roofs, navigation planner and agent behaviors are not included. Existing floor-handler `commit`/`preview_geometry` APIs remain supported; new tools can override `propose_edit(context, gesture)` for validated commands and precise previews.
 
 Run all `tests/test_*.gd` scripts headlessly, and optionally `tests/benchmark_structures.gd`. See `docs/verification.md` for measured results and graphical validation limits.
+
+## Circular walls and curved doors
+
+**Structures → Circular Wall** uses the same center/radius gesture and sampled boundary as the floor Circle tool. Build the floor and wall with the same center and radius to align them. Circular walls form structural rooms and can join straight walls. Right-drag the same center/radius to remove the whole loop and its attached doors; partial arc erasure is deferred.
+
+Use the existing **Door** tool on either straight or circular walls. Curved doors follow one base cell of boundary length, including across sample vertices and the circle seam. Placement snaps locally at quarter-cell distances along a circular boundary, independently of visible-grid zoom. Their curved opening and closed leaf share the preview geometry. Open, close, lock, occupancy checks, inspection and right-click removal work through the same controls.
+
+Circle primitives store center, radius, sample count and stable ID compactly. `get_circles()` exposes primitives; `get_wall_segments()` expands all physical wall centerlines for geometry consumers. `get_doors()` adds a derived `path` to circle-anchored doors; `StructureData.door_path(door)` returns the path for either kind. Occupancy callbacks receive `path` in addition to `a`, `b`, `radius` and `id`; check every path segment for curved doors. Codec version 2 adds circles and anchored door parameters while version 1 remains supported for straight-only worlds.
+
+Circles use the floor tool's bounded polygon approximation, rather than mathematically exact arcs. Rendering, movement, visibility and room recognition consume the same sampled shape. Full rebuild costs depend on expanded segment count. Godot float precision still limits detail far from the origin; origin rebasing remains future work.

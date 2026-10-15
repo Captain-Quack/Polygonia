@@ -21,10 +21,13 @@ func _draw() -> void:
 	if not is_instance_valid(model):return
 	var cell: float=grid.base_cell_size
 	for door in model.structures.get_doors():
-		var a=Vector2(door.a)*cell;var b=Vector2(door.b)*cell
+		var path=StructureData.door_path(door)
+		for i in range(path.size()):path[i]*=cell
+		var a=path[0];var b=path[-1]
 		var color=locked_color if door.locked else door_color
 		if door.state==&"CLOSED":
-			draw_line(a,b,color,.1*cell,true);draw_circle(a,.05*cell,color);draw_circle(b,.05*cell,color)
+			draw_polyline(path,color,.1*cell,true)
+			for point in path:draw_circle(point,.05*cell,color)
 		else:
 			var direction=(b-a).normalized();var normal=Vector2(-direction.y,direction.x)
 			# Thin swing illustration has no collision; the aperture itself is clear.

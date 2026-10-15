@@ -10,22 +10,39 @@ func segments() -> Array:
 	_segments=[]
 	var doors=model.structures.get_doors()
 	for wall in model.structures.get_walls():
-		var intervals: Array=[Vector2i(StructureData.low(wall),StructureData.high(wall))]
+		var pieces: Array=[[Vector2(wall.a),Vector2(wall.b)]]
 		for d in doors:
-			if not StructureData.collinear(wall,d):continue
-			var next: Array=[]
-			for part in intervals:
-				var lo=maxi(part.x,StructureData.low(d));var hi=mini(part.y,StructureData.high(d))
-				if hi<=lo:next.append(part)
-				else:
-					if part.x<lo:next.append(Vector2i(part.x,lo))
-					if hi<part.y:next.append(Vector2i(hi,part.y))
-			intervals=next
-		for part in intervals:
-			var piece=StructureData.subrun(wall,part.x,part.y)
-			_segments.append({"a":Vector2(piece.a),"b":Vector2(piece.b),"id":piece.id,"door":false})
+			if d.has("circle_id"):continue
+			var path=StructureData.door_path(d)
+			for i in range(path.size()-1):
+				var remaining: Array=[]
+				for piece in pieces:remaining.append_array(SegmentGeometry.subtract(piece[0],piece[1],path[i],path[i+1]))
+				pieces=remaining
+		for piece in pieces:_segments.append({"a":piece[0],"b":piece[1],"id":wall.id,"door":false})
+	# Cut circles by their authoritative path distances. Testing rounded
+	# interpolated door points for collinearity can leave invisible fragments.
+	for circle in model.structures.get_circles():
+		var points=model.structures.circle_points(circle)
+		var total=CircleBoundary.length(points,true)
+		var intervals: Array=[[0.0,total]]
+		for d in doors:
+			if d.get("circle_id",0)!=circle.id:continue
+			var cuts: Array=[[d.offset,minf(total,d.offset+1.0)]]
+			if d.offset+1.0>total:cuts.append([0.0,d.offset+1.0-total])
+			for cut in cuts:
+				var remaining: Array=[]
+				for span in intervals:
+					if cut[1]<=span[0] or cut[0]>=span[1]:remaining.append(span);continue
+					if cut[0]>span[0]:remaining.append([span[0],cut[0]])
+					if cut[1]<span[1]:remaining.append([cut[1],span[1]])
+				intervals=remaining
+		for span in intervals:
+			var path=CircleBoundary.slice(points,span[0],span[1]-span[0])
+			for i in range(path.size()-1):_segments.append({"a":path[i],"b":path[i+1],"id":circle.id,"door":false})
 	for d in doors:
-		if d.state==&"CLOSED":_segments.append({"a":Vector2(d.a),"b":Vector2(d.b),"id":d.id,"door":true})
+		if d.state==&"CLOSED":
+			var path=StructureData.door_path(d)
+			for i in range(path.size()-1):_segments.append({"a":path[i],"b":path[i+1],"id":d.id,"door":true})
 	_cached_revision=model.structures.barrier_revision
 	return _segments.duplicate(true)
 static func _box_time(px: float,py: float,vx: float,vy: float,length: float,radius: float) -> float:
@@ -52,12 +69,16 @@ static func _circle_time(px: float,py: float,vx: float,vy: float,radius: float) 
 	var time=closest_time-sqrt((radius*radius-distance_squared)/a)
 	return time if time>=0 and time<=1 else INF
 static func capsule_time(from: Vector2,to: Vector2,a: Vector2,b: Vector2,radius: float) -> float:
-	var horizontal=a.y==b.y
-	var p=from-a;var v=to-from
-	var px=float(p.x if horizontal else p.y);var py=float(p.y if horizontal else p.x)
-	var vx=float(v.x if horizontal else v.y);var vy=float(v.y if horizontal else v.x)
-	var length=float(b.x-a.x if horizontal else b.y-a.y)
-	return minf(_box_time(px,py,vx,vy,length,radius),minf(_circle_time(px,py,vx,vy,radius),_circle_time(px-length,py,vx,vy,radius)))
+	var dx=float(b.x)-a.x;var dy=float(b.y)-a.y
+	var length=sqrt(dx*dx+dy*dy)
+	if length==0:return _circle_time(float(from.x)-a.x,float(from.y)-a.y,float(to.x)-from.x,float(to.y)-from.y,radius)
+	var ux=dx/length;var uy=dy/length
+	var x=float(from.x)-a.x;var y=float(from.y)-a.y
+	var vx=float(to.x)-from.x;var vy=float(to.y)-from.y
+	var px=x*ux+y*uy;var py=-x*uy+y*ux
+	var tx=vx*ux+vy*uy;var ty=-vx*uy+vy*ux
+	return minf(_box_time(px,py,tx,ty,length,radius),minf(_circle_time(px,py,tx,ty,radius),_circle_time(px-length,py,tx,ty,radius)))
+
 func _hits(from: Vector2,to: Vector2,radius: float,ignore_id: int=0) -> Array:
 	var result: Array=[]
 	for segment in segments():
@@ -87,8 +108,9 @@ func crossing_option(door_id: int,profile: Dictionary) -> Dictionary:
 	if not is_finite(radius) or radius<0:result.reason=&"INVALID_QUERY";return result
 	if door.locked:result.reason=&"LOCKED";return result
 	if door.state==&"CLOSED" and not profile.get("can_open_doors",false):result.reason=&"CANNOT_OPEN";return result
-	var midpoint=(Vector2(door.a)+Vector2(door.b))*.5
-	var direction=Vector2(door.b-door.a).normalized()
+	var middle=CircleBoundary.middle(StructureData.door_path(door))
+	var midpoint=middle.point
+	var direction=middle.direction
 	var normal=Vector2(-direction.y,direction.x)*(radius+WALL_RADIUS+.1)
 	if not _hits(midpoint-normal,midpoint+normal,radius,door_id).is_empty():result.reason=&"INSUFFICIENT_CLEARANCE";return result
 	result.kind=&"PASS" if door.state==&"OPEN" else &"OPEN_THEN_PASS"

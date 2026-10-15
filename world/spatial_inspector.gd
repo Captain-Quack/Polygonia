@@ -77,8 +77,10 @@ func select_at(point_base: Vector2) -> void:
 	selected_point=point_base;has_selection=true;selected_door_id=0
 	var distance=10.0/(grid.base_cell_size*camera.zoom.x)
 	for d in model.structures.get_doors():
-		var p=Geometry2D.get_closest_point_to_segment(point_base,Vector2(d.a),Vector2(d.b))
-		var candidate=point_base.distance_to(p)
+		var path=StructureData.door_path(d);var candidate=INF
+		for i in range(path.size()-1):
+			var p=Geometry2D.get_closest_point_to_segment(point_base,path[i],path[i+1])
+			candidate=minf(candidate,point_base.distance_to(p))
 		if candidate<distance:
 			distance=candidate;selected_door_id=d.id
 	selected_region_id=model.regions.locate(point_base).region_id
@@ -135,13 +137,16 @@ func _draw() -> void:
 		for r in model.regions.get_regions():
 			if not r.bounded:continue
 			var color=Color.from_hsv(fposmod(r.id*.618,1),.4,.65,.16)
-			var levels: Dictionary={}
+			var loops: Array=[]
 			for ring in [r.outer]+r.holes:
-				for p in ring:levels[p.y]=true
-			var ys=levels.keys();ys.sort()
-			for i in range(ys.size()-1):
-				for span in RegionIndex.intervals(r,(ys[i]+ys[i+1])*.5):
-					draw_rect(Rect2(Vector2(span.x,ys[i])*cell,Vector2(span.y-span.x,ys[i+1]-ys[i])*cell),color)
+				var points:=PackedVector2Array()
+				for point in ring:points.append(Vector2(point)*cell)
+				loops.append(points)
+			for band in preload("res://floors/shape_geometry.gd").fill_bands(loops):
+				var origin=band[0];var local=band.duplicate()
+				for i in range(local.size()):local[i]-=origin
+				draw_set_transform(origin);draw_colored_polygon(local,color);draw_set_transform(Vector2.ZERO)
+
 		for portal in model.regions.get_portals():
 			var p=(Vector2(portal.a)+Vector2(portal.b))*.5*cell
 			draw_circle(p,.11*cell,Color(.2,.5,.6,.9))

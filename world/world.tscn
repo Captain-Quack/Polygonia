@@ -26,6 +26,8 @@
 
 [ext_resource type="Script" path="res://world/spatial_inspector.gd" id="18"]
 
+[ext_resource type="Resource" path="res://structures/tools/circular_wall_handler.tres" id="19"]
+
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_fyhu2"]
 shader = ExtResource("1_ai45w")
 shader_parameter/paper_color = Color(0.9647059, 0.94509804, 0.90588236, 1)
@@ -74,7 +76,7 @@ script = ExtResource("14")
 
 [node name="ConstructionPreview" type="Node2D" parent="." unique_id=1904252962]
 script = ExtResource("5")
-tool_handlers = Array[ExtResource("9")]([ExtResource("10"), ExtResource("11"), ExtResource("12"), ExtResource("15"), ExtResource("16")])
+tool_handlers = Array[ExtResource("9")]([ExtResource("10"), ExtResource("11"), ExtResource("12"), ExtResource("15"), ExtResource("19"), ExtResource("16")])
 
 [node name="SpatialInspector" type="Node2D" parent="."]
 script = ExtResource("18")
