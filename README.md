@@ -138,3 +138,10 @@ Circle hosts store center, radius, sample count, stable ID and normalized occupi
 Codec version 3 represents partial arcs and fractional orthogonal endpoints. Versions 1 and 2 remain readable, and old circles load as full loops. Legacy Circular Wall resources remain available for old scenes, but the current scene registers Arc Wall in their place. New construction handlers can override `control_point_count()` and `instructions()` for staged point input without adding tool-name branches to the editor.
 
 Curves use the floor tool's bounded polygon approximation. Rendering, movement, visibility and room recognition consume the same sampled shape. Work depends on expanded segment count. Godot float precision limits detail far from the origin; origin rebasing remains future work. Arc centers and radii remain grid based; this addition does not introduce freeform splines or arbitrary diagonal straight-wall drawing.
+
+## Phase One: autonomous Polygons
+
+The **Life** tools place Polygons, finite food sources and resting places. Polygons
+perceive and remember resources, navigate walls and doors, eat, rest and suffer
+starvation. Use **Inspect Polygon** and the pause/speed controls to observe them.
+See [the survival guide](docs/agent-survival.md) for usage, extension points and limits.
