@@ -18,10 +18,13 @@ func install_structure(next: StructureData, change: StructureChange, publish: bo
 	if change.topology_changed: regions.rebuild(structures)
 	if publish:structure_changed.emit(change)
 
+var simulation: AgentSimulation
 var physical := PhysicalQueries.new()
 var occupancy_query: Callable
 func _init() -> void:
 	physical.model=self
+	simulation = AgentSimulation.new(self)
+	occupancy_query = simulation.occupied
 
 func replace_structures(payload: Dictionary) -> StructureChange:
 	var result:=StructureChange.new()

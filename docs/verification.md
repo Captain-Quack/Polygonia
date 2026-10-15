@@ -79,3 +79,16 @@ Base: main `36624eb` (same tree as local circular-wall delivery `3dbdf84`). Vali
 - Independent review found a conflicting mouse press cancelling a staged gesture and then restarting it in the opposite mode through unhandled input. A real dispatched-event regression reproduced it before the fix and passes afterward. Review reran the original repro and found no remaining Important/Critical issue.
 - Straight walls preserve fractional orthogonal endpoints for curve joins; codec versions 1 and 2 remain readable. Old full circles retain full occupancy, while new partial hosts carry normalized boundary-distance ranges. Legacy Circular Wall resources remain for old scenes but are no longer registered by the current world scene.
 - Graphical/GPU appearance and Godot 4.7 execution remain unverified. The uploaded screenshot was inspected and informed the mixed-outline regression; headless tests do not establish the visual experience of the three-click gesture. Curves retain bounded polygon sampling, full rebuild costs and floating-point coordinate limits.
+
+## 2026-10-15 — Phase One survival
+
+Godot 4.6 stable, Linux headless: `python3 tests/run_tests.py <godot>` passed
+24/24 checks (22 SceneTree suites, editor import, and main-scene startup).
+Includes hunger/starvation, finite portions/reservations, fatigue/rest, unseen food
+movement, removal during eating, concurrent last-portion use, dead-agent inactivity,
+new enclosures/reopened routes, straight/curved barriers, door opening/locks,
+modular scene tools, pause, and real pointer snapping at object centers.
+No graphical screenshot/playtest was performed in this environment. The project
+retains its existing Godot 4.7 feature setting; checks ran on the available 4.6 engine.
+Independent review found snapping and inspect-mode issues; both have regression tests.
+That review ended early at a usage limit, so it is not a full independent signoff.

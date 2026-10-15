@@ -98,6 +98,8 @@ func visible_step() -> int:
 	return int(pow(float(multiplier), level))
 
 func snap(point: Vector2) -> Vector2i:
+	if handlers.has(tool) and handlers[tool].snap_policy() == &"cell_centers":
+		return Vector2i((point / maxf(grid.base_cell_size, 1.0)).floor())
 	return Vector2i((point / (maxf(grid.base_cell_size, 1.0) * step_cells)).round()) * step_cells
 
 func make_proposal(a: Vector2i,b: Vector2i,erase: bool) -> ConstructionProposal:
