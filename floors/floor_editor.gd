@@ -14,11 +14,16 @@ const FloorData = preload("res://floors/floor_data.gd")
 @export_range(0.5, 8.0, 0.1) var guide_width := 1.0
 @export_range(1.0, 12.0, 0.5) var guide_marker_radius := 3.0
 @export_range(10, 32, 1) var guide_font_size := 14
-var data := FloorData.new()
+var data:
+	get:
+		return get_parent().get_node("WorldModel").floors
 @export var tool_handlers: Array[ConstructionToolHandler] = []
 var tool: StringName = &""
 var handlers: Dictionary = {}
 var menu: Control
+var enabled := true
+var raw_start := Vector2.ZERO
+var current_proposal: ConstructionProposal
 var dragging := false
 var erasing := false
 var step_cells := 1
@@ -91,12 +96,26 @@ func visible_step() -> int:
 func snap(point: Vector2) -> Vector2i:
 	return Vector2i((point / (maxf(grid.base_cell_size, 1.0) * step_cells)).round()) * step_cells
 
-func commit_stroke(a: Vector2i, b: Vector2i, erase: bool) -> void:
+func make_proposal(a: Vector2i,b: Vector2i,erase: bool) -> ConstructionProposal:
+	var context := construction_context()
+	var gesture := ConstructionGesture.new()
+	gesture.start=a;gesture.end=b;gesture.step=step_cells;gesture.erase=erase
+	gesture.raw_start=raw_start if dragging else Vector2(a)
+	gesture.raw_end=context.pointer_base if dragging else Vector2(b)
+	return handlers[tool].propose_edit(context,gesture)
+
+func commit_stroke(a: Vector2i,b: Vector2i,erase: bool) -> void:
 	if handlers.has(tool):
-		handlers[tool].commit(data, a, b, step_cells, erase)
+		var proposal=make_proposal(a,b,erase)
+		if proposal.valid:construction_context().model.execute(proposal.command)
+
+func set_enabled(value: bool) -> void:
+	enabled=value
+	if not value:cancel()
 
 func cancel() -> void:
 	dragging = false
+	current_proposal=null
 	if is_instance_valid(_preview_ink):
 		_preview_ink.configure([], 1.0, Color.WHITE)
 	if is_instance_valid(camera):
@@ -106,6 +125,7 @@ func cancel() -> void:
 func _process(_delta: float) -> void:
 	if dragging:
 		endpoint = snap(get_global_mouse_position())
+		current_proposal=make_proposal(start,endpoint,erasing)
 	queue_redraw()
 
 func _input(event: InputEvent) -> void:
@@ -123,14 +143,15 @@ func _input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 func _unhandled_input(event: InputEvent) -> void:
-	if dragging or not handlers.has(tool):
+	if not enabled or dragging or not handlers.has(tool):
 		return
 	if event is InputEventMouseButton and event.pressed and event.button_index in [MOUSE_BUTTON_LEFT, MOUSE_BUTTON_RIGHT]:
 		if Input.is_physical_key_pressed(KEY_SPACE) or camera._drag_button != 0:
 			return
 		dragging = true
 		erasing = event.button_index == MOUSE_BUTTON_RIGHT
-		step_cells = visible_step()
+		step_cells = visible_step() if handlers[tool].snap_policy()==&"visible_grid" else 1
+		raw_start=get_global_mouse_position()/grid.base_cell_size
 		start = snap(get_global_mouse_position())
 		endpoint = start
 		camera.construction_active = true
@@ -144,11 +165,14 @@ func _draw() -> void:
 	var ink := erase_preview_ink if erasing else preview_ink
 	if not handlers.has(tool):
 		return
-	var geometry: Dictionary = handlers[tool].preview_geometry(start, endpoint, step_cells, grid.base_cell_size, minf(renderer.corner_radius / camera.zoom.x, grid.base_cell_size * 0.45))
+	if current_proposal==null:current_proposal=make_proposal(start,endpoint,erasing)
+	var geometry: Dictionary=current_proposal.preview
+	if not current_proposal.valid:
+		color=erase_preview_color;ink=erase_preview_ink
 	for polygon in geometry.get("fills", []):
 		draw_colored_polygon(polygon, color)
 	var width: float = renderer.line_width if geometry.get("use_line_width", false) else preview_width
-	_preview_ink.configure(geometry.get("paths", []), width / camera.zoom.x, ink, geometry.get("closed", false))
+	_preview_ink.configure(geometry.get("paths", []), geometry.get("world_width",width / camera.zoom.x), ink, geometry.get("closed", false))
 	if show_preview_guides:
 		var scale := maxf(camera.zoom.x, 0.0001)
 		var tint := erase_preview_ink if erasing else guide_color
@@ -167,3 +191,12 @@ func _draw() -> void:
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		cancel()
+
+func construction_context() -> ConstructionContext:
+	var context := ConstructionContext.new()
+	context.model = get_parent().get_node("WorldModel")
+	context.cell_size = grid.base_cell_size
+	context.camera_scale = camera.zoom.x
+	context.pointer_base = get_global_mouse_position() / context.cell_size
+	context.corner_radius_world = minf(renderer.corner_radius / camera.zoom.x, grid.base_cell_size * 0.45)
+	return context

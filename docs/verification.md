@@ -44,3 +44,15 @@ Base: merged main `1139a6f`, preserving Godot 4.7 configuration. Tested with God
 - A 25-circle radius-5 lattice (spacing 3) yields one outline and 214 convex bands. On this host: approximately 174 ms cumulative painting and 4 ms contour extraction, versus several seconds and invalid contours in the initial fragment implementation. Timings are observations, not portable performance guarantees.
 - Contour keys quantize to 0.0001 base cells using 64-bit-safe text. The circle's chord-error setting is a target overridden by its segment cap; extreme coordinates retain the engine's float32 precision limit.
 - Graphical Inspector/GPU inspection and Godot 4.7 execution remain unverified; headless runtime drawing and class registration are verified.
+
+## Walls, doors and structural regions — 2026-10-15
+
+Implemented on Circle construction commit `ab2ac90` (merged in main as `1a7c641`). Godot 4.7 configuration preserved; validation engine is Godot 4.5.1 stable Linux x86_64.
+
+- Headless editor import, five-frame main-scene startup and all 14 test suites pass with zero failures and no engine errors. Existing seven construction suites remain green.
+- New suites cover shared model ownership, sparse wall union/subtraction, atomic invalid edits, stable IDs, door support/state/locking, serialization, snapshot restore, region holes/partitions/lineage, portals, visibility, body clearance, long swept motion, tool integration, inspector mode and event revisions.
+- Independent region oracle: 20 deterministic maps of 35 segments compared against a finite cell-flood oracle for connectivity and area. Production topology never allocates cells across the enclosed area. A million-cell-wide rectangle remains four wall records.
+- Independent review found incorrect incident regions near wall junctions, rejected restore events reporting revision zero, and cancellation in very long near-tangent capsule sweeps. Each issue was reproduced by a failing regression test, fixed, and verified passing.
+- Optional `benchmark_structures.gd` measures validated replacement plus complete topology rebuild for separated rectangular rooms: 100 wall runs / 25 rooms ~9 ms; 500 / 125 ~182 ms; 1,000 / 250 ~676 ms on this host. These are observations, not performance guarantees; intersection and lineage work is quadratic, and dense layouts need future profiling and incremental rebuilds.
+- Full-world save/load UI, player undo stack, roofs, agents and semantic ownership remain outside this milestone. Exterior regions can later support meaningful outdoor places without requiring walls.
+- Graphical GPU/Inspector validation and Godot 4.7 execution remain unverified. Check wall/door styling, overlapping UI at small window sizes, preview readability across zoom levels, and shift-drag probe appearance when opening the project graphically.

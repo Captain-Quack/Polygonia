@@ -24,7 +24,7 @@ Paper/grid changes preview live in the 2D editor. The editor's own pan/zoom cont
 The renderer nodes should remain at position (0,0), scale (1,1), rotation 0 beneath an untransformed World. The grid uses that common coordinate space. Hide a renderer with its normal Visibility property. Paper is behind grid; future content draws afterward.
 
 ## Architecture
-The requested tree is preserved with PaperRenderer added first. FloorRenderer and ConstructionPreview provide construction rendering and input. WallRenderer, ObjectContainer, AgentContainer, and Inspector remain extension points. CanvasLayer contains the collapsible ConstructionMenu and view controls.
+The requested tree is preserved with PaperRenderer added first. FloorRenderer and ConstructionPreview provide construction rendering and input. WorldModel owns floors, structures, region topology and physical queries. WallRenderer draws structures; SpatialInspector exposes room and door diagnostics. ObjectContainer and AgentContainer remain extension points. CanvasLayer contains the collapsible ConstructionMenu and view controls.
 
 `viewport_renderer.gd` draws just a viewport-covering polygon, including in editor. Shaders calculate paper texture and line coverage procedurally. No empty-world tiles, sprites, or chunks are allocated while panning.
 
@@ -101,4 +101,20 @@ Shared floor APIs are `apply_rect(rect, erase)`, `apply_polygon(points, erase)`,
 
 Scan-band Boolean edits split at boundary intersections, union/subtract intervals, and produce non-overlapping trapezoids. Horizontal seams cancel into outer/hole contours; translucent fill is drawn once. Topology keys quantize to 0.0001 base cells and avoid 32-bit scaling overflow. Calculations and fill-band triangulation use local origins; the engine's floating-point coordinate precision still limits detail extremely far from the origin.
 
-Run `test_circle_tools.gd` alongside the six existing suites. It verifies snapping, preview/commit agreement, cardinal extents, square/circle interoperability, nested holes and islands, point tangencies, mixed-edit occupancy, invalid input, distant circles, renderer geometry, and 25 overlapping circles. Agent passage and room recognition are future work.
+Run `test_circle_tools.gd` alongside the six existing suites. It verifies snapping, preview/commit agreement, cardinal extents, square/circle interoperability, nested holes and islands, point tangencies, mixed-edit occupancy, invalid input, distant circles, renderer geometry, and 25 overlapping circles. Structural room recognition and passage queries are available through WorldModel; agent decision-making remains future work.
+
+## Walls, doors and structural regions
+
+The **Structures** menu contains Wall and Door. Wall drags follow the dominant axis and visible grid; right-drag erases. Floor Line remains decorative and does not divide rooms. Door targets an existing wall and always occupies one base-cell interval, even at coarse zoom. Right-click a door to remove it, restoring solid wall. Invalid previews show a reason and cannot commit. Erasing a wall must remove an entire supported door or leave it fully supported.
+
+**Inspect mode** disables construction. Click a room or door; the inspector reports region IDs, area, portals, door state and validation feedback. Open/Close/Lock/Unlock act on the selected door. **Region overlay** displays bounded areas and portals. Shift-drag while inspecting probes movement with a 0.2-cell-radius body and a sight line. Escape or selecting a construction tool leaves Inspect mode.
+
+Rooms represent structural enclosure: an open door connects two rooms without merging their identities. Exterior is region `0`; roof coverage is explicitly **Unknown**. An enclosed courtyard therefore is not automatically weatherproof. Social meanings such as home, meeting place or garden can later reference arbitrary areas, including outdoor space, independently of structural rooms.
+
+Agent-facing interfaces are `WorldModel.regions.locate(point)`, `get_regions()`, `get_portals()` and `WorldModel.physical.sweep(start, end, radius)`, `visibility_hits(start, end)` and `crossing_option(door_id, profile)`. Positions are in base cells. Door profiles provide `radius` and `can_open_doors`. Commands validate against current world state; consumers can subscribe to `structure_changed` and `world_replaced`. Geometry, barriers and traversal permissions have separate revisions. Install an `occupancy_query` callback before introducing bodies so closing doors can reject occupied apertures.
+
+Storage uses sparse orthogonal segments and integer endpoints within ±1,000,000 base cells. Region work scales with geometry, not enclosed cell count. Full topology rebuilds currently use quadratic comparisons; large dense structures can cause editing pauses. Physical walls and closed doors have a 0.05-cell collision radius. Body clearance and sight use the same barrier representation. Rendering still inherits Godot's floating-point precision limitations far from the origin.
+
+`StructureCodec` provides validated version-1 serialization; command snapshots support internal restore/redo. A player save/load UI, global undo stack, roofs, navigation planner and agent behaviors are not included. Existing floor-handler `commit`/`preview_geometry` APIs remain supported; new tools can override `propose_edit(context, gesture)` for validated commands and precise previews.
+
+Run all `tests/test_*.gd` scripts headlessly, and optionally `tests/benchmark_structures.gd`. See `docs/verification.md` for measured results and graphical validation limits.

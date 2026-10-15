@@ -1,0 +1,48 @@
+extends SceneTree
+var failures := 0
+func check(ok: bool, message: String) -> void:
+	if not ok: failures+=1; push_error(message)
+func _initialize() -> void:
+	if not ResourceLoader.exists("res://spatial/region_index.gd"):
+		check(false,"Region index exists"); quit(1); return
+	var F=load("res://tests/structure_fixtures.gd")
+	var C=load("res://structures/structure_command.gd")
+	var model=load("res://world/world_model.gd").new()
+	F.rectangle(model,Vector2i.ZERO,Vector2i(10,10))
+	check(model.regions.get_regions().size()==2,"bounded region and exterior")
+	var outer_id=model.regions.locate(Vector2(1,1)).region_id
+	check(model.regions.region(outer_id).area==100.0,"rectangle area")
+	model.execute(C.place_door(Vector2i(1,0),Vector2i(2,0)))
+	check(model.regions.locate(Vector2(1,1)).region_id==outer_id,"door keeps room identity")
+	F.rectangle(model,Vector2i(3,3),Vector2i(7,7))
+	var annulus=model.regions.region(model.regions.locate(Vector2(1,1)).region_id)
+	check(annulus.area==84.0 and annulus.holes.size()==1,"annular region excludes hole")
+	check(model.regions.region(model.regions.locate(Vector2(5,5)).region_id).area==16.0,"inner region")
+	check(model.regions.locate(Vector2(0,5)).kind==&"BOUNDARY","wall boundary explicit")
+	check(model.regions.locate(Vector2(-10,-10)).region_id==0,"exterior")
+	var count=model.regions.get_regions().size()
+	model.execute(C.wall(Vector2i(4,4),Vector2i(6,4),false))
+	check(model.regions.get_regions().size()==count,"isolated interior segment creates no room")
+	model.execute(C.wall(Vector2i(3,5),Vector2i(5,5),false))
+	check(model.regions.get_regions().size()==count,"dangling partition creates no room")
+	model.execute(C.wall(Vector2i(5,5),Vector2i(7,5),false))
+	check(model.regions.get_regions().size()==count+1,"complete partition splits room")
+	check(not model.regions.last_change.overlap_links.is_empty(),"split lineage")
+	model.free()
+	model=load("res://world/world_model.gd").new()
+	F.rectangle(model,Vector2i(-500000,-2),Vector2i(500000,2))
+	check(model.structures.get_walls().size()==4,"large room compact")
+	check(model.regions.region(model.regions.locate(Vector2.ZERO).region_id).area==4000000.0,"large room exact area")
+	model.free()
+	model=load("res://world/world_model.gd").new()
+	F.rectangle(model,Vector2i.ZERO,Vector2i(2,2));F.rectangle(model,Vector2i(2,2),Vector2i(4,4))
+	check(model.regions.get_regions().size()==3,"corner touching rooms distinct")
+	model.free()
+	model=load("res://world/world_model.gd").new()
+	F.rectangle(model,Vector2i.ZERO,Vector2i(8,4))
+	model.execute(C.wall(Vector2i(4,0),Vector2i(4,4),false))
+	var incidents=model.regions.locate(Vector2(4,.1)).incident_region_ids
+	check(incidents.size()==2 and not incidents.has(0),"near-junction boundary includes only incident rooms")
+	check(model.regions.locate(Vector2(4,0)).incident_region_ids.size()==3,"junction includes exterior and both rooms")
+	model.free()
+	print("regions: %d failures" % failures);quit(1 if failures else 0)
