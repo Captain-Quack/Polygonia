@@ -103,8 +103,10 @@ minimal and can be replaced separately from behavior.
 - Navigation searches a half-cell lattice in a start/goal box expanded by 12 cells,
   with a 4096-node budget. SEARCH_LIMIT/NO_ROUTE mean no route found within this search,
   not mathematical proof of inaccessibility. Very tight curved apertures can be missed.
-- Exploration is deterministic local wandering, not exhaustive global search of an
-  unbounded world. It does not promise to discover arbitrarily distant food.
+- Exploration keeps a seeded heading, makes small direction changes on open ground,
+  and tries larger turns when blocked. It remembers eight reached destinations to
+  discourage immediate backtracking, but can revisit them when necessary. This is
+  local search, not exhaustive global coverage or a guarantee of finding food.
 - Polygons have wall clearance but do not yet collide with one another. Capacity controls
   resource contention; crowd avoidance and physical resource footprints are deferred.
 - Fixed 0.1-second simulation updates, with per-frame movement interpolation and
@@ -132,3 +134,15 @@ Run the complete checks with:
 ```sh
 python3 tests/run_tests.py /path/to/godot
 ```
+
+## Natural emergency progression
+
+The default extreme-feeding deprivation threshold is 0.35. With the current default
+body rates, a fresh agent in a food-free world becomes eligible around 173 seconds,
+with roughly 53% health remaining; without nourishment it still dies around 200 seconds.
+The original 0.65 threshold exceeded the roughly 0.574 deprivation reached at death,
+so extreme feeding was unreachable during a first uninterrupted starvation episode.
+Eligibility permits consideration of corpse feeding or predation; traits, perceived
+alternatives, and available targets still determine the actual choice. A lone agent in
+an empty world has nothing to attack or eat and continues searching until death.
+These numbers are game tuning, not scientific thresholds.

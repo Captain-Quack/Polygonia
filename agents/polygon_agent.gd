@@ -16,7 +16,7 @@ var controller: AgentActionController
 var decision_scores: Array = []
 var next_decision := 0.0
 var next_perception := 0.0
-var exploration_index := 0
+var exploration := AgentExploration.new()
 func remember_event(message: String) -> void:
 	if not recent_events.is_empty() and recent_events[-1] == message: return
 	recent_events.append(message)

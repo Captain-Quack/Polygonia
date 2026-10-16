@@ -7,7 +7,8 @@ extends Resource
 @export var recovery_seconds := 180.0
 @export var mobility_penalty := 0.25
 @export var predation_enabled := true
-@export var predation_deprivation := 0.65
+## Reachable during a first starvation episode under the default body rates.
+@export var predation_deprivation := 0.35
 @export var predation_nourishment := 0.10
 @export var strike_interval := 1.0
 @export var strike_damage := 0.10

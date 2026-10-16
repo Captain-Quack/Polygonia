@@ -51,18 +51,14 @@ func tick(agent: PolygonAgent,simulation,delta: float) -> void:
 		&"explore":
 			if now < wait_until: return
 			if route_points.is_empty():
-				var found := false
-				for attempt in range(4):
-					agent.exploration_index += 1
-					var angle = agent.exploration_index * 2.399963 + agent.id
-					var goal = agent.position + Vector2.from_angle(angle) * 4.0
-					var route = nav.route(agent.position,goal,agent.radius)
-					if route.status == &"OK":
-						route_points = route.points; route_revision = revision; found = true; break
-				if not found:
+				var search = agent.exploration.choose(agent,nav)
+				if search.is_empty():
 					wait_until = now + 3.0; agent.action = &"waiting: no route"; return
+				route_points = search.points; route_revision = revision
 			agent.action = &"searching"
 			if not _move(agent,nav,delta): route_points.clear(); wait_until = now + 1.0
+			elif route_points.is_empty(): agent.exploration.reached(agent.position)
+
 		&"interact":
 			# Perception may disprove a remembered target; do not follow world truth remotely.
 			if not agent.beliefs.has(current.key):

@@ -23,6 +23,7 @@ func spawn(point: Vector2) -> PolygonAgent:
 	agent.id = _next_id; _next_id += 1
 	agent.personality = AgentPersonality.from_seed(seed_value,agent.id)
 	agent.position = point
+	agent.exploration.initialize(seed_value,agent.id,point)
 	agent.motion.begin(point,agent.facing)
 	agent.controller = AgentActionController.new()
 	agents.append(agent)
