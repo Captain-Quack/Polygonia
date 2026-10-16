@@ -59,7 +59,7 @@ to see its needs and decisions."
 		var choices: Array[String] = []
 		for option in agent.decision_scores.slice(0,3):
 			choices.append("%s %.2f" % [option.get("interaction",option.kind),option.score])
-		description.text = "Polygon %d · %s\nHunger %d%% · Fatigue %d%% · Health %d%%\nKnown opportunities: %d\n%s\n%s" % [agent.id,str(agent.action).capitalize(),roundi(agent.body.hunger()*100),roundi(agent.body.fatigue*100),roundi(agent.body.health*100),agent.beliefs.size()," / ".join(choices),agent.recent_events[-1] if not agent.recent_events.is_empty() else "Observing the world."]
+		description.text = agent.inspection_text()+"\n"+" / ".join(choices)+"\n"+(agent.recent_events[-1] if not agent.recent_events.is_empty() else "Observing the world.")
 		return
 func _unhandled_input(event: InputEvent) -> void:
 	if not inspecting: return
@@ -71,6 +71,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		selected_id = 0
 		var best = 0.6
 		for agent in model.simulation.agents:
+			if agent.death_handled: continue
 			var distance = point.distance_to(agent.motion.sample(accumulator / SIMULATION_STEP).position)
 			if distance < best: selected_id = agent.id; best = distance
 		get_viewport().set_input_as_handled(); _refresh()
@@ -87,13 +88,19 @@ func _draw() -> void:
 		# Object visuals can be replaced independently of interaction providers.
 		if object.definition.definition_id == &"rest":
 			draw_style_box(_rest_style(color),Rect2(p-Vector2(.3,.18)*cell,Vector2(.6,.36)*cell))
+		elif object.definition.definition_id == &"corpse":
+			draw_set_transform(p)
+			draw_colored_polygon(AgentRenderer.rounded_triangle(.2*cell),Color(color,.5))
+			draw_line(Vector2(-.13,-.1)*cell,Vector2(.13,.1)*cell,color,1.5,true)
+			draw_set_transform(Vector2.ZERO)
 		else:
 			for offset in [Vector2(-.1,.07),Vector2(.1,.07),Vector2(0,-.1)]: draw_circle(p+offset*cell,.085*cell,color,true,-1,true)
 	for agent in model.simulation.agents:
+		if agent.death_handled: continue
 		var pose = agent.motion.sample(accumulator / SIMULATION_STEP)
 		var points = AgentRenderer.rounded_triangle(agent.radius*cell)
 		draw_set_transform(pose.position*cell,pose.facing)
-		var color = Color(.28,.46,.43) if agent.body.alive() else Color(.5,.48,.44,.5)
+		var color = AgentRenderer.state_color(agent)
 		draw_colored_polygon(points,color)
 		points.append(points[0]); draw_polyline(points,Color(.2,.29,.27),1.4,true)
 		draw_set_transform(Vector2.ZERO)

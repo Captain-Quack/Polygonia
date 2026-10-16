@@ -32,4 +32,4 @@ func invalidate() -> void:
 	_users.clear()
 func observation() -> Dictionary:
 	return {"interaction": definition.interaction_id, "duration": definition.duration,
-		"effects": definition.effects(), "available": available()}
+		"requirement": definition.requirement, "effects": definition.effects(), "available": available()}
