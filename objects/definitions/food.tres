@@ -4,10 +4,11 @@
 [sub_resource type="Resource" id="interaction"]
 script = ExtResource("2")
 nourishment = 0.45
-initial_stock = 8
+initial_stock = 1
 [resource]
 script = ExtResource("1")
 definition_id = &"food"
+remove_when_depleted = true
 display_name = "Food"
 color = Color(0.35, 0.55, 0.35, 1)
 interactions = Array[ExtResource("2")]([SubResource("interaction")])

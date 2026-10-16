@@ -6,7 +6,8 @@ to remove the corresponding kind. Drag a resource with Move to relocate it, pres
 its identity and remaining portions. Objects can share a cell in this first version.
 
 Place food a few cells from a Polygon and watch it discover, approach, and eat.
-Food initially holds eight portions. Add a resting place; an exhausted Polygon can
+Each food marker initially holds one serving and disappears when consumed.
+Change `initial_stock` in its interaction resource to create larger finite piles. Add a resting place; an exhausted Polygon can
 also rest on the ground, less efficiently. Open **Inspect Polygon**, then click a
 Polygon to see hunger, fatigue, health, current action, remembered opportunities,
 leading utility scores, recent outcome, and its current route. This does not command it.
@@ -26,7 +27,8 @@ An empty remembered location is forgotten after inspection. Failed routes receiv
 8-second retry delay, bypassed when traversal geometry changes. Known depleted food
 remains unavailable until a later observation shows otherwise. Food and resting places
 have capacity one; a reserved final portion cannot be consumed by another agent.
-Moving/removing a resource cancels its active users. Effects occur only on successful
+Objects opt into removal on depletion with `remove_when_depleted`; objects with any
+remaining or unlimited capability stay in the world. Moving/removing a resource cancels its active users. Effects occur only on successful
 completion; cancellation gives neither a portion nor its effects.
 
 Agents use body-clearance pathfinding across straight/curved walls and doors. Unlocked
@@ -36,6 +38,8 @@ locked doors block routes. Doors cannot close onto a Polygon, including a dead o
 ## Code boundaries
 
 - `agents/body_state.gd`: normalized physiology and rates.
+- `agents/agent_motion.gd`: interpolation of the actual traveled segments and heading
+  between simulation steps; drawing and picking use the same visual position.
 - `agents/need_system.gd`, `decision_system.gd`: expected relief, travel penalty, options.
 - `agents/perception_system.gd`: observations and negative sightings.
 - `agents/polygon_agent.gd`: identity, body, snapshots, bounded recent event history.
@@ -74,7 +78,10 @@ minimal and can be replaced separately from behavior.
   unbounded world. It does not promise to discover arbitrarily distant food.
 - Polygons have wall clearance but do not yet collide with one another. Capacity controls
   resource contention; crowd avoidance and physical resource footprints are deferred.
-- Fixed 0.1-second updates, at most eight per rendered frame. Severe frame stalls slow
+- Fixed 0.1-second simulation updates, with per-frame movement interpolation and
+  smooth heading changes. Interpolation adds one simulation step of display latency
+  and follows waypoint segments to avoid cutting corners. At most eight updates
+  run per rendered frame. Severe frame stalls slow
   simulation time rather than accumulating an unbounded catch-up backlog.
 - Perception scans resources and navigation scans wall segments; intended for small
   populations initially. Spatial indexing and a shared route-work budget can come later.

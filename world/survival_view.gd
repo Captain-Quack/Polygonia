@@ -2,6 +2,7 @@ extends Node2D
 ## Scene adapter: fixed-step clock, drawing, and read-only agent inspection.
 var paused := false
 var speed := 1.0
+const SIMULATION_STEP := 0.1
 var accumulator := 0.0
 var selected_id := 0
 var inspecting := false
@@ -43,8 +44,8 @@ func _set_inspecting(value: bool) -> void:
 func _process(delta: float) -> void:
 	if not paused:
 		accumulator = minf(accumulator + delta*speed,0.8)
-		while accumulator >= 0.1:
-			model.simulation.tick(0.1); accumulator -= 0.1
+		while accumulator >= SIMULATION_STEP:
+			model.simulation.tick(SIMULATION_STEP); accumulator -= SIMULATION_STEP
 	_refresh(); queue_redraw()
 func _refresh() -> void:
 	if description == null: return
@@ -70,7 +71,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		selected_id = 0
 		var best = 0.6
 		for agent in model.simulation.agents:
-			var distance = point.distance_to(agent.position)
+			var distance = point.distance_to(agent.motion.sample(accumulator / SIMULATION_STEP).position)
 			if distance < best: selected_id = agent.id; best = distance
 		get_viewport().set_input_as_handled(); _refresh()
 func _draw() -> void:
@@ -89,15 +90,16 @@ func _draw() -> void:
 		else:
 			for offset in [Vector2(-.1,.07),Vector2(.1,.07),Vector2(0,-.1)]: draw_circle(p+offset*cell,.085*cell,color,true,-1,true)
 	for agent in model.simulation.agents:
+		var pose = agent.motion.sample(accumulator / SIMULATION_STEP)
 		var points = AgentRenderer.rounded_triangle(agent.radius*cell)
-		draw_set_transform(agent.position*cell,agent.facing)
+		draw_set_transform(pose.position*cell,pose.facing)
 		var color = Color(.28,.46,.43) if agent.body.alive() else Color(.5,.48,.44,.5)
 		draw_colored_polygon(points,color)
 		points.append(points[0]); draw_polyline(points,Color(.2,.29,.27),1.4,true)
 		draw_set_transform(Vector2.ZERO)
 		if agent.id == selected_id:
-			draw_circle(agent.position*cell,.32*cell,Color(.3,.55,.45),false,1.5,true)
-			var path = PackedVector2Array([agent.position*cell])
+			draw_circle(pose.position*cell,.32*cell,Color(.3,.55,.45),false,1.5,true)
+			var path = PackedVector2Array([pose.position*cell])
 			for point in agent.controller.route_points: path.append(point*cell)
 			if path.size()>1: draw_polyline(path,Color(.3,.55,.45,.4),1.0,true)
 func _rest_style(color: Color) -> StyleBoxFlat:

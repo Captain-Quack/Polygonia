@@ -7,6 +7,7 @@ var radius := 0.2
 var speed := 1.4
 var sight_range := 6.0
 var body := PolygonBody.new()
+var motion := AgentMotion.new()
 ## Value snapshots, never references to mutable world-object state.
 var beliefs: Dictionary = {}
 var recent_events: Array[String] = []

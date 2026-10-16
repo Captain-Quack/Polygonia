@@ -98,5 +98,6 @@ func _move(agent: PolygonAgent,nav: AgentNavigation,delta: float) -> bool:
 		if not nav.prepare_step(agent.position,next,agent.radius,agent.id): return false
 		agent.facing = (next-agent.position).angle()
 		agent.position = next; remaining -= distance
+		agent.motion.record(next,agent.facing)
 		if agent.position.distance_to(target) < 0.001: route_points.pop_front()
 	return true
