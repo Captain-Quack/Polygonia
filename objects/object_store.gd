@@ -39,3 +39,11 @@ func nearest(point: Vector2, distance: float = 0.6, kind: StringName = &"") -> P
 		var d = point.distance_to(object.position)
 		if d < distance: distance = d; best = object
 	return best
+
+func remove_depleted() -> void:
+	for object in all():
+		if not object.definition.remove_when_depleted or object.providers.is_empty(): continue
+		var depleted := true
+		for provider in object.providers:
+			if provider.stock != 0: depleted = false; break
+		if depleted: remove(object.id)

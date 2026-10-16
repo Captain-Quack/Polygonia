@@ -14,6 +14,7 @@ func spawn(point: Vector2) -> PolygonAgent:
 	var agent = PolygonAgent.new()
 	agent.id = _next_id; _next_id += 1
 	agent.position = point
+	agent.motion.begin(point,agent.facing)
 	agent.controller = AgentActionController.new()
 	agents.append(agent)
 	return agent
@@ -25,6 +26,7 @@ func tick(delta: float) -> void:
 	if not is_finite(delta) or delta <= 0: return
 	time += delta
 	for agent in agents:
+		agent.motion.begin(agent.position,agent.facing)
 		agent.body.tick(delta)
 		if not agent.body.alive():
 			agent.controller.cancel(agent); agent.action = &"dead"; continue
@@ -36,6 +38,7 @@ func tick(delta: float) -> void:
 			agent.controller.reconsider(agent,agent.decision_scores,time)
 			agent.next_decision = time + 0.5
 		agent.controller.tick(agent,self,delta)
+	objects.remove_depleted()
 func occupied(capsule: Dictionary) -> bool:
 	var path: PackedVector2Array = capsule.path
 	for agent in agents:

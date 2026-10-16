@@ -92,3 +92,15 @@ No graphical screenshot/playtest was performed in this environment. The project
 retains its existing Godot 4.7 feature setting; checks ran on the available 4.6 engine.
 Independent review found snapping and inspect-mode issues; both have regression tests.
 That review ended early at a usage limit, so it is not a full independent signoff.
+
+
+## 2026-10-16 — Continuous movement and finite food
+
+Added regression suites for render interpolation and food depletion. Motion tests
+verify successive samples between simulation steps, shortest-arc heading interpolation,
+corner following, spawn/stationary poses, and no changes to authoritative positions.
+Food tests verify a one-serving default, removal after successful consumption, contention
+for the last serving, no repeated nutrition from depleted food, and persistent rest.
+Both suites failed before implementation and passed afterward. The full runner passed
+26/26 checks on Godot 4.6 stable (editor import, 24 SceneTree suites and scene startup).
+Graphical playtesting remains manual.
