@@ -104,3 +104,57 @@ for the last serving, no repeated nutrition from depleted food, and persistent r
 Both suites failed before implementation and passed afterward. The full runner passed
 26/26 checks on Godot 4.6 stable (editor import, 24 SceneTree suites and scene startup).
 Graphical playtesting remains manual.
+
+
+## 2026-10-16 — Rest-spot correctness
+
+Reproduced agents ignoring visible rest spots three/five cells away and ending rest
+above the recovery target. Fixed session-aware rest scoring (including interaction
+duration and travel), shared the ground recovery/target constants, and kept a rest
+spot reserved across recovery pulses until completion or interruption.
+
+The new test_rest_spots.gd covers reaching spots at distances 0/3/5, resting to 20%
+fatigue, faster recovery than ground, duration-aware choice, single-user capacity,
+release/reuse, moving/removing a spot mid-rest, food interruption, blocked-route
+fallback and reopening. Automated results are recorded in the follow-up PR.
+
+## 2026-10-16 — Emergency behavior
+
+Implemented health-sensitive starvation assessment, cumulative deprivation, bounded
+impairment, seeded traits, urgent food/search choices, perceived threats, escape/defense,
+simultaneous contact combat, and finite corpse resources. Inspection includes urgency,
+deprivation, impairment, target and the reason for a decision. Research informs the
+model; numerical settings and predation rules are explicitly simulation design.
+
+Initial integrated verification: `python3 tests/run_tests.py
+/tmp/polygonia-godot/Godot_v4.6-stable_linux.x86_64` passed 33/33 checks
+(31 SceneTree suites, editor import and scene startup). Tests include the 12%-health
+rest regression, urgent unknown-food search, no partial-meal rescue, gradual recovery,
+seeded replay, contact/cooldown validation, simultaneous lethal strikes, wall occlusion,
+reservation release, corpse contention and moved/removed remains. New suites were
+observed failing before implementation. Full-branch independent review follows.
+
+Godot 4.6 stable Linux headless was used; the project retains its 4.7 feature setting.
+No graphical playtest has been performed. Broad-population performance, visual clarity,
+and clinical fidelity are not established by these tests. Ordinary food reservation ties
+remain ordered; navigation remains bounded and cannot guarantee global discovery.
+
+Independent review reproduced three important cases missed by the initial suite:
+rotating the route budget could repeatedly cancel meals, hide ordinary food from
+predation policy, and cancel an admitted corpse meal after an external nourishment
+change. `tests/test_emergency_regressions.gd` reproduced all three before fixes and
+passes afterward. Current intentions now retain a validation slot, unevaluated ordinary
+food defers predation, and admitted meals bypass start-only eligibility checks.
+Additional health-contrast and wall-detour timing assertions also pass.
+
+Implementation decisions: emergency starvation uses conservative feeding/search
+priority rather than an optimal sequence of short rest breaks (less nuanced emergency
+rest); busy resources retry after 0.5 seconds while route failures retain 8 seconds
+(more frequent bounded contention retries); progress was tracked directly in a local
+ledger because the cloud skill helper scripts were unavailable (no product effect).
+The reviewer reported no further high-confidence critical issues in snapshot pursuit,
+simultaneous damage, death materialization or cancelled-provider accounting. The review
+reported findings during execution; no separate post-fix review was requested.
+
+Final post-fix run: **34/34 checks passed**, including 32 SceneTree suites,
+editor import and world startup, on Godot 4.6 stable. `git diff --check` was clean.

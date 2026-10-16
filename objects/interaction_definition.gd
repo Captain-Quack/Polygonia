@@ -2,6 +2,7 @@ class_name InteractionDefinition
 extends Resource
 ## Shared immutable configuration; providers own runtime stock and users.
 @export var interaction_id: StringName = &"eat"
+@export var requirement: StringName = &""
 @export var duration := 2.0
 @export var nourishment := 0.45
 @export var fatigue := 0.0

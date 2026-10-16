@@ -11,25 +11,28 @@ func cancel(agent: PolygonAgent) -> void:
 	if provider != null: provider.cancel(agent.id)
 	provider = null; progress = 0; route_points.clear(); current.clear()
 	agent.action = &"idle"
-func reconsider(agent: PolygonAgent,options: Array,now: float) -> void:
+func reconsider(agent: PolygonAgent,options: Array,now: float,urgent: bool = false) -> void:
 	var best: Dictionary = options[0]
 	if not current.is_empty():
 		var existing: Dictionary = {}
 		for option in options:
 			if option.key == current.key: existing = option; break
-		if not existing.is_empty() and best.score < existing.score + 0.12:
+		if not existing.is_empty() and (best.key == existing.key or (not urgent and best.score < existing.score + 0.12)):
 			# A newly observed position can legitimately redirect an existing intention.
 			if existing.get("position") == current.get("position"):
-				current.score = existing.score; return
+				current.merge(existing,true); agent.decision_reason = existing.get("reason",agent.decision_reason); return
 			best = existing
 	cancel(agent)
 	current = best.duplicate(true)
+	agent.decision_reason = best.get("reason","Balancing needs.")
+	if best.has("route_points"):
+		route_points = best.route_points.duplicate(); route_revision = best.route_revision
 	wait_until = now
 	agent.action = best.kind
 func _fail(agent: PolygonAgent,now: float,revision: int,reason: String) -> void:
 	if agent.beliefs.has(current.get("key","")):
 		var belief: Dictionary = agent.beliefs[current.key]
-		belief.retry_at = now + 8.0; belief.failed_revision = revision
+		belief.retry_at = now + (0.5 if reason == "Resource busy or depleted." else 8.0); belief.failed_revision = revision
 	agent.remember_event(reason)
 	cancel(agent)
 	agent.next_decision = now + 0.5
@@ -38,10 +41,12 @@ func tick(agent: PolygonAgent,simulation,delta: float) -> void:
 	var now: float = simulation.time
 	var nav: AgentNavigation = simulation.navigation
 	var revision: int = simulation.model.structures.traversal_revision
+	if current.kind in [&"pursue",&"flee",&"defend"]:
+		AgentThreatActions.tick(agent,simulation,delta); return
 	match current.kind:
 		&"ground_rest":
 			agent.action = &"resting on ground"
-			agent.body.apply_effects({&"fatigue":-0.028*delta})
+			agent.body.apply_effects({&"fatigue":-AgentNeeds.GROUND_REST_RECOVERY*delta})
 		&"idle": agent.action = &"idle"
 		&"explore":
 			if now < wait_until: return
@@ -77,6 +82,8 @@ func tick(agent: PolygonAgent,simulation,delta: float) -> void:
 			if object == null or object.position.distance_to(destination) > 0.01 or object.revision != current.revision or not AgentPerception.visible(agent,object.position,simulation.model):
 				_fail(agent,now,revision,"Resource changed before use."); return
 			if provider == null:
+				if current.get("requirement",&"") == &"extreme_feeding" and not AgentThreatActions.eligible(agent,simulation.profile()):
+					cancel(agent); return
 				provider = object.providers[current.provider]
 				if not provider.begin(agent.id):
 					_fail(agent,now,revision,"Resource busy or depleted."); return
@@ -86,10 +93,15 @@ func tick(agent: PolygonAgent,simulation,delta: float) -> void:
 				var effects = provider.complete(agent.id)
 				if not effects.is_empty():
 					agent.body.apply_effects(effects)
+					agent.familiarity[current.key] = int(agent.familiarity.get(current.key,0))+1
 					agent.remember_event("Ate a portion." if current.interaction == &"eat" else "Rested.")
+					# Keep the place reserved between recovery pulses until the session ends.
+					if current.interaction == &"rest" and agent.body.fatigue > AgentNeeds.REST_TARGET and provider.begin(agent.id):
+						progress = 0.0
+						return
 				cancel(agent); agent.next_decision = now; agent.next_perception = now
 func _move(agent: PolygonAgent,nav: AgentNavigation,delta: float) -> bool:
-	var remaining = agent.speed * (1.0 - agent.body.fatigue * 0.35) * delta
+	var remaining = agent.effective_speed() * delta
 	while remaining > 0 and not route_points.is_empty():
 		var target: Vector2 = route_points[0]
 		var distance = agent.position.distance_to(target)

@@ -8,7 +8,9 @@ its identity and remaining portions. Objects can share a cell in this first vers
 Place food a few cells from a Polygon and watch it discover, approach, and eat.
 Each food marker initially holds one serving and disappears when consumed.
 Change `initial_stock` in its interaction resource to create larger finite piles. Add a resting place; an exhausted Polygon can
-also rest on the ground, less efficiently. Open **Inspect Polygon**, then click a
+also rest on the ground, less efficiently. Rest sessions continue until fatigue is
+at most 20%, unless another need interrupts them. Rest choices compare recovery rate
+and travel time over the expected session, rather than one short recovery pulse. Open **Inspect Polygon**, then click a
 Polygon to see hunger, fatigue, health, current action, remembered opportunities,
 leading utility scores, recent outcome, and its current route. This does not command it.
 Pause/Resume and 1×/2×/4× control simulation time; construction remains available paused.
@@ -18,8 +20,28 @@ The existing Spaces & doors inspector still operates doors and locks.
 
 Nourishment falls over time; hunger is its complement. Urgency grows nonlinearly.
 Below 10% nourishment, deprivation damages health. At zero health the agent stops
-moving and releases interactions. This phase includes no attacks, cannibalism,
-corpse consumption, relationships, habits, personality, or day/night cycle.
+moving and releases interactions. Health-sensitive urgency can interrupt rest for timely
+food, or motivate searching when no food is known. Prolonged inadequate nourishment
+builds deprivation separately from current hunger; sustained feeding reduces it gradually.
+Deprivation slows movement and narrows alternative consideration. Stable seeded caution,
+persistence, and aggression influence decisions. There are no relationships, habits,
+health regeneration, or day/night cycle yet.
+
+Extreme deprivation can permit pursuit of living agents when timely ordinary food is
+unavailable. This is contingent on traits and perceived risk, not automatic aggression.
+Attacked agents escape or defend if no escape route is found. Strikes require contact
+and clear line of sight, use a cooldown, and resolve simultaneously. Agents remember
+observed positions only. Each death creates one finite corpse portion; only agents
+eligible for extreme feeding may start eating it. Nutrition arrives after a completed
+two-second interaction, never from a hit or kill. Corpse resources can be moved and
+removed through the object API; a dedicated corpse editor tool is not included.
+
+Inspect Polygon now includes urgency, accumulated deprivation, impairment, target, and
+a reason for the last decision. Red-brown denotes pursuit/attack, amber escape/defense,
+blue rest, green feeding; remains are faded triangles. These are simulation mechanics,
+not clinical predictions. The evidence and numerical defaults are documented in the
+emergency behavior specification. Configure a validated EmergencyProfile through
+`simulation.configure(profile)`; `simulation.profile()` returns a defensive copy.
 
 Sight has finite range and wall/closed-door occlusion. Beliefs contain last observed
 locations, not live object references. An unseen moved object is not followed magically.
@@ -33,11 +55,18 @@ completion; cancellation gives neither a portion nor its effects.
 
 Agents use body-clearance pathfinding across straight/curved walls and doors. Unlocked
 closed doors are opened on arrival, with the agent ID attached to the existing command;
-locked doors block routes. Doors cannot close onto a Polygon, including a dead one.
+locked doors block routes. Doors cannot close onto a living Polygon. Converted remains
+are nonblocking resource objects; their former agent no longer occupies space.
 
 ## Code boundaries
 
-- `agents/body_state.gd`: normalized physiology and rates.
+- `agents/body_state.gd`: normalized physiology, deprivation history, and rates.
+- `agents/emergency_profile.gd`, `emergency_assessment.gd`: validated settings and
+  pure assessment of urgency, impairment, and remaining survival time.
+- `agents/personality.gd`, `motivation_system.gd`, `option_evaluator.gd`: stable traits,
+  need weights, bounded route evaluation, expected relief timing and decision reasons.
+- `agents/threat_actions.gd`, `combat_system.gd`, `death_system.gd`: pursuit/escape,
+  simultaneous contact strikes, and idempotent finite-remains creation.
 - `agents/agent_motion.gd`: interpolation of the actual traveled segments and heading
   between simulation steps; drawing and picking use the same visual position.
 - `agents/need_system.gd`, `decision_system.gd`: expected relief, travel penalty, options.
@@ -83,8 +112,15 @@ minimal and can be replaced separately from behavior.
   and follows waypoint segments to avoid cutting corners. At most eight updates
   run per rendered frame. Severe frame stalls slow
   simulation time rather than accumulating an unbounded catch-up backlog.
-- Perception scans resources and navigation scans wall segments; intended for small
-  populations initially. Spatial indexing and a shared route-work budget can come later.
+- Perception scans resources and nearby agents; navigation scans wall segments; intended for small
+  populations initially. Each decision validates at most eight resource routes (two at
+  maximum impairment), plus bounded threat/escape candidates. Spatial indexing and a
+  shared population-wide route-work budget can come later.
+- Ordinary food reservation ties still favor update order; combat strikes resolve
+  together. Health does not regenerate and agents can die before a meal completes.
+- Emergency parameters are game tuning, including the 30-second urgency window.
+  Rest breaks are conservatively suppressed during urgent ongoing starvation;
+  agents do not solve an optimal multi-action survival plan.
 
 ## Verification
 
