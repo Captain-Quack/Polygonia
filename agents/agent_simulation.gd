@@ -23,6 +23,7 @@ func spawn(point: Vector2) -> PolygonAgent:
 	agent.id = _next_id; _next_id += 1
 	agent.personality = AgentPersonality.from_seed(seed_value,agent.id)
 	agent.position = point
+	agent.exploration.initialize(seed_value,agent.id,point)
 	agent.motion.begin(point,agent.facing)
 	agent.controller = AgentActionController.new()
 	agents.append(agent)
@@ -44,6 +45,7 @@ func tick(delta: float) -> void:
 		agent.body.tick_deprivation(delta,_profile)
 		agent.body.tick(delta)
 		agent.assessment = EmergencyAssessment.evaluate(agent.body,_profile)
+		EmergencyAssessment.update_context(agent,time,delta,_profile)
 		if not agent.body.alive():
 			AgentDeathSystem.materialize(agent,self)
 	# Perception of intentions happens before any agent changes its decision.

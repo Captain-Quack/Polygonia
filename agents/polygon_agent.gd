@@ -16,7 +16,7 @@ var controller: AgentActionController
 var decision_scores: Array = []
 var next_decision := 0.0
 var next_perception := 0.0
-var exploration_index := 0
+var exploration := AgentExploration.new()
 func remember_event(message: String) -> void:
 	if not recent_events.is_empty() and recent_events[-1] == message: return
 	recent_events.append(message)
@@ -44,4 +44,11 @@ var death_handled := false
 var corpse_id := 0
 
 func inspection_text() -> String:
-	return "Polygon %d · %s\nHunger %d%% · Fatigue %d%% · Health %d%%\nUrgency %d%% · Deprivation %d%% · Impairment %d%%\nTarget: %s\n%s" % [id,str(action).capitalize(),roundi(body.hunger()*100),roundi(body.fatigue*100),roundi(body.health*100),roundi(float(assessment.get("urgency",0))*100),roundi(body.deprivation*100),roundi(float(assessment.get("impairment",0))*100),str(controller.current.get("key","none")),decision_reason]
+	return "Polygon %d · %s\nHunger %d%% · Fatigue %d%% · Health %d%%\nUrgency %d%% · Deprivation %d%% · Impairment %d%%\nDesperation %d%% · Constraints %d%%\nTarget: %s\n%s" % [id,str(action).capitalize(),roundi(body.hunger()*100),roundi(body.fatigue*100),roundi(body.health*100),roundi(float(assessment.get("urgency",0))*100),roundi(body.deprivation*100),roundi(float(assessment.get("impairment",0))*100),roundi(desperation*100),roundi(constraint_pressure*100),str(controller.current.get("key","none")),decision_reason]
+
+## Frustrated access and resulting motivation are separate from physical impairment.
+var constraint_pressure := 0.0
+var desperation := 0.0
+var last_setback_at := -INF
+func report_setback(now: float) -> void:
+	last_setback_at = now

@@ -103,8 +103,10 @@ minimal and can be replaced separately from behavior.
 - Navigation searches a half-cell lattice in a start/goal box expanded by 12 cells,
   with a 4096-node budget. SEARCH_LIMIT/NO_ROUTE mean no route found within this search,
   not mathematical proof of inaccessibility. Very tight curved apertures can be missed.
-- Exploration is deterministic local wandering, not exhaustive global search of an
-  unbounded world. It does not promise to discover arbitrarily distant food.
+- Exploration keeps a seeded heading, makes small direction changes on open ground,
+  and tries larger turns when blocked. It remembers eight reached destinations to
+  discourage immediate backtracking, but can revisit them when necessary. This is
+  local search, not exhaustive global coverage or a guarantee of finding food.
 - Polygons have wall clearance but do not yet collide with one another. Capacity controls
   resource contention; crowd avoidance and physical resource footprints are deferred.
 - Fixed 0.1-second simulation updates, with per-frame movement interpolation and
@@ -132,3 +134,43 @@ Run the complete checks with:
 ```sh
 python3 tests/run_tests.py /path/to/godot
 ```
+
+## Natural emergency progression
+
+The default extreme-feeding deprivation threshold is 0.35. With the current default
+body rates, a fresh agent in a food-free world becomes eligible around 173 seconds,
+with roughly 53% health remaining; without nourishment it still dies around 200 seconds.
+The original 0.65 threshold exceeded the roughly 0.574 deprivation reached at death,
+so extreme feeding was unreachable during a first uninterrupted starvation episode.
+Eligibility permits consideration of corpse feeding or predation; traits, perceived
+alternatives, and available targets still determine the actual choice. A lone agent in
+an empty world has nothing to attack or eat and continues searching until death.
+These numbers are game tuning, not scientific thresholds.
+
+## Constraints, desperation, and fight or flight
+
+Desperation is a motivation signal separate from accumulated deprivation and impairment.
+Recent failed resource routes, blocked movement and failed exploration attempts increase
+constraint pressure while nourishment is inadequate. Pressure decays after setbacks stop.
+A comfortably fed agent does not become desperate merely because it is enclosed.
+Successful nourishment reduces need pressure even while physical impairment remains.
+Inspection shows both desperation and constraints.
+
+Extreme feeding remains gated by starvation, absence of timely ordinary food, and
+personality/risk assessment. High desperation can open that option before deprivation
+alone would do so; zero aggression still rejects predation. Desperation changes willingness
+to accept injury risk, not access to hidden food, opponents or exits.
+
+Under direct threat, an agent compares its own reserves against observed opponent
+condition and the number of known attackers. A stronger agent can defend itself without
+being hungry; a vulnerable agent generally escapes when it can. Escape routes must gain
+separation and avoid cutting through another known attacker, with bounded navigation
+candidates including shorter nearby escapes. If no safe escape is found, the agent can
+defend or guard. Defense strikes at contact and never pursues a withdrawn opponent.
+Guarding alone does not renew hostility; actual incoming hits do, so confined agents
+continuing to exchange damage can still fight to the death. Visible deaths clear obsolete
+threats. Behavior uses coarse observed condition, not exact hidden enemy health.
+
+These heuristics do not implement negotiation, surrender, combat formations, or freeze
+responses. They do not establish clinical fidelity. The tuning remains centralized in
+the emergency profile where rates and eligibility limits are configurable.

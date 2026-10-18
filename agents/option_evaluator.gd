@@ -38,6 +38,7 @@ static func evaluate(agent: PolygonAgent,options: Array,simulation: AgentSimulat
 		var route = simulation.navigation.route(agent.position,option.position,agent.radius)
 		option.route_status = route.status
 		if route.status != &"OK":
+			agent.report_setback(simulation.time)
 			option.score = -1
 			var belief: Dictionary = agent.beliefs.get(option.key,{})
 			belief.retry_at = simulation.time+8
@@ -67,7 +68,7 @@ static func evaluate(agent: PolygonAgent,options: Array,simulation: AgentSimulat
 		if option.kind == &"explore" and weights.danger and not food_found:
 			option.score = 20.0
 			option.urgent = true
-			option.reason = "Searching for food: resting cannot stop starvation."
+			option.reason = "Repeated setbacks; urgently searching for another way to food." if agent.constraint_pressure > .5 else "No known food; searching urgently."
 	options = options.filter(func(o): return o.score >= 0)
 	options.sort_custom(func(a,b): return a.score > b.score)
 	agent.timely_food = timely_food

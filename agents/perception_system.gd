@@ -28,10 +28,12 @@ static func agent_snapshot(other: PolygonAgent,now: float) -> Dictionary:
 static func observe_agents(agent: PolygonAgent,agents: Array[PolygonAgent],model: WorldModel,now: float) -> void:
 	var seen: Dictionary = {}
 	for other in agents:
-		if other == agent or not other.body.alive() or not visible(agent,other.position,model): continue
+		if other == agent or not visible(agent,other.position,model): continue
+		if not other.body.alive():
+			agent.agent_beliefs.erase(other.id); agent.threats.erase(other.id); continue
 		seen[other.id] = true
 		agent.agent_beliefs[other.id] = agent_snapshot(other,now)
-		if other.controller.current.get("target",0) == agent.id and other.controller.current.get("kind") in [&"pursue",&"defend"]:
+		if other.controller.current.get("target",0) == agent.id and other.controller.current.get("kind") == &"pursue":
 			agent.threats[other.id] = {"position":other.position,"until":now+3.0}
 		elif agent.threats.has(other.id): agent.threats[other.id].position = other.position
 	for id in agent.agent_beliefs.keys():

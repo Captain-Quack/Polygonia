@@ -32,3 +32,13 @@ static func evaluate(body: PolygonBody,profile: EmergencyProfile) -> Dictionary:
 	var harm = damage_over(body,.1)/.1
 	var urgency = clampf(1.0-deadline/30.0,0,1) if is_finite(deadline) else 0.0
 	return {"urgency":urgency,"impairment":body.deprivation,"mobility":1-profile.mobility_penalty*body.deprivation,"fatal_after":deadline,"harm_rate":harm}
+
+static func update_context(agent: PolygonAgent,now: float,delta: float,profile: EmergencyProfile) -> void:
+	var need = clampf((profile.recovery_threshold-agent.body.nourishment)/profile.recovery_threshold,0,1)
+	if need > 0 and now-agent.last_setback_at <= profile.setback_memory_seconds:
+		agent.constraint_pressure = minf(1,agent.constraint_pressure+delta/profile.constraint_buildup_seconds)
+	else:
+		agent.constraint_pressure = maxf(0,agent.constraint_pressure-delta/profile.constraint_recovery_seconds)
+	agent.desperation = clampf(need*(.2+.3*agent.body.deprivation+.5*agent.constraint_pressure)+.3*float(agent.assessment.get("urgency",0)),0,1)
+	agent.assessment.desperation = agent.desperation
+	agent.assessment.constraints = agent.constraint_pressure
