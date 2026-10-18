@@ -181,3 +181,30 @@ The urgent-search reason now reads 'No known food; searching urgently.'
 Both new suites failed before implementation and pass afterward. Full runner:
 36/36 checks passed (34 SceneTree suites, editor import and startup), Godot 4.6 stable
 Linux headless. Graphical playtesting and Godot 4.7 execution remain unverified.
+
+
+## 2026-10-16 — Constrained options and fight-or-flight choices
+
+Added distinct constraint pressure and desperation. Repeated failed access while food
+need grows increases pressure; well-fed confinement stays calm and feeding relieves
+motivation pressure without erasing accumulated impairment. Under starvation, high
+pressure can permit consideration of predation before the deprivation threshold alone.
+
+New focused suites test confinement versus free exploration from default physiology,
+adequate food in an enclosure, an actual desperate contact attack, relief after eating,
+healthy self-defense against a weaker attacker, vulnerable escape, withdrawal, and
+routes that do not cross another known attacker. Both suites failed before implementation.
+Defense no longer chases a retreating target; defensive intent without actual hits does
+not perpetuate threat memory. Actual exchanged damage remains a valid threat.
+
+Independent review found no important new defect within this scope and identified an
+older stale-nearest-threat edge case. A failing regression reproduced a dead former
+attacker masking a living threat. Visible death now clears the obsolete threat, and
+current visible attackers are considered for defense even when closer stale threats
+remain remembered. The regression passes. No graphical playtest was performed.
+
+Final runner: `python3 tests/run_tests.py
+/tmp/polygonia-godot/Godot_v4.6-stable_linux.x86_64` passed 38/38 checks
+(36 SceneTree suites, editor import and startup) on Godot 4.6 stable Linux headless.
+Godot 4.7 execution and graphical playtesting remain outstanding. `git diff --check`
+was clean.

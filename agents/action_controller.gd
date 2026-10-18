@@ -33,6 +33,7 @@ func _fail(agent: PolygonAgent,now: float,revision: int,reason: String) -> void:
 	if agent.beliefs.has(current.get("key","")):
 		var belief: Dictionary = agent.beliefs[current.key]
 		belief.retry_at = now + (0.5 if reason == "Resource busy or depleted." else 8.0); belief.failed_revision = revision
+	agent.report_setback(now)
 	agent.remember_event(reason)
 	cancel(agent)
 	agent.next_decision = now + 0.5
@@ -53,10 +54,12 @@ func tick(agent: PolygonAgent,simulation,delta: float) -> void:
 			if route_points.is_empty():
 				var search = agent.exploration.choose(agent,nav)
 				if search.is_empty():
+					agent.report_setback(now)
 					wait_until = now + 3.0; agent.action = &"waiting: no route"; return
 				route_points = search.points; route_revision = revision
 			agent.action = &"searching"
-			if not _move(agent,nav,delta): route_points.clear(); wait_until = now + 1.0
+			if not _move(agent,nav,delta):
+				agent.report_setback(now); route_points.clear(); wait_until = now + 1.0
 			elif route_points.is_empty(): agent.exploration.reached(agent.position)
 
 		&"interact":

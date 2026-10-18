@@ -44,4 +44,11 @@ var death_handled := false
 var corpse_id := 0
 
 func inspection_text() -> String:
-	return "Polygon %d · %s\nHunger %d%% · Fatigue %d%% · Health %d%%\nUrgency %d%% · Deprivation %d%% · Impairment %d%%\nTarget: %s\n%s" % [id,str(action).capitalize(),roundi(body.hunger()*100),roundi(body.fatigue*100),roundi(body.health*100),roundi(float(assessment.get("urgency",0))*100),roundi(body.deprivation*100),roundi(float(assessment.get("impairment",0))*100),str(controller.current.get("key","none")),decision_reason]
+	return "Polygon %d · %s\nHunger %d%% · Fatigue %d%% · Health %d%%\nUrgency %d%% · Deprivation %d%% · Impairment %d%%\nDesperation %d%% · Constraints %d%%\nTarget: %s\n%s" % [id,str(action).capitalize(),roundi(body.hunger()*100),roundi(body.fatigue*100),roundi(body.health*100),roundi(float(assessment.get("urgency",0))*100),roundi(body.deprivation*100),roundi(float(assessment.get("impairment",0))*100),roundi(desperation*100),roundi(constraint_pressure*100),str(controller.current.get("key","none")),decision_reason]
+
+## Frustrated access and resulting motivation are separate from physical impairment.
+var constraint_pressure := 0.0
+var desperation := 0.0
+var last_setback_at := -INF
+func report_setback(now: float) -> void:
+	last_setback_at = now

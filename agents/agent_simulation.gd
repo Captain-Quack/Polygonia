@@ -45,6 +45,7 @@ func tick(delta: float) -> void:
 		agent.body.tick_deprivation(delta,_profile)
 		agent.body.tick(delta)
 		agent.assessment = EmergencyAssessment.evaluate(agent.body,_profile)
+		EmergencyAssessment.update_context(agent,time,delta,_profile)
 		if not agent.body.alive():
 			AgentDeathSystem.materialize(agent,self)
 	# Perception of intentions happens before any agent changes its decision.
