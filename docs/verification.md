@@ -208,3 +208,21 @@ Final runner: `python3 tests/run_tests.py
 (36 SceneTree suites, editor import and startup) on Godot 4.6 stable Linux headless.
 Godot 4.7 execution and graphical playtesting remain outstanding. `git diff --check`
 was clean.
+
+## 2026-10-18 — Panic as a derived response
+
+Added test_panic_response.gd, observed failing before implementation. It covers panic
+from default physiology under prolonged confinement, explanatory inspection text,
+shorter retries, next-tick reconsideration even during waiting, immediate reaction to
+an opened enclosure, ending panic after feeding, movement in cramped navigable rooms,
+and calm waiting without an urgent unmet need.
+
+Panic reuses constraint pressure and desperation. Bounded exploration adds 1.5/0.5-cell
+probes after the existing four-cell directions. An existing backtracking regression
+caught shorter probes displacing a valid full-length retreat; this was fixed by
+preferring a valid retreat before considering shorter distances. Focused panic,
+exploration and confinement tests then passed.
+
+Final runner passed 39/39 checks (37 SceneTree suites, editor import and world startup)
+on Godot 4.6 stable Linux headless. `git diff --check` was clean. Graphical playtesting
+and Godot 4.7 execution remain unverified.

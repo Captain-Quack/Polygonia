@@ -42,3 +42,7 @@ static func update_context(agent: PolygonAgent,now: float,delta: float,profile: 
 	agent.desperation = clampf(need*(.2+.3*agent.body.deprivation+.5*agent.constraint_pressure)+.3*float(agent.assessment.get("urgency",0)),0,1)
 	agent.assessment.desperation = agent.desperation
 	agent.assessment.constraints = agent.constraint_pressure
+
+## A derived response, not another persistent need or independent state machine.
+static func is_panicking(agent: PolygonAgent) -> bool:
+	return agent.body.alive() and agent.constraint_pressure >= .5 and agent.desperation >= .65

@@ -174,3 +174,20 @@ threats. Behavior uses coarse observed condition, not exact hidden enemy health.
 These heuristics do not implement negotiation, surrender, combat formations, or freeze
 responses. They do not establish clinical fidelity. The tuning remains centralized in
 the emergency profile where rates and eligibility limits are configurable.
+
+## Panic during blocked exploration
+
+Panic is derived from existing constraint pressure (at least 50%) and desperation
+(at least 65%); it is not another stored need or separate state machine. During
+exploration it appears as 'Panicking' with the reason 'Panicking: searching for a way
+out.' Comfortable failed searches continue to wait calmly. Panic does not bypass
+ordinary food choices, threat responses, wall clearance, or predation eligibility.
+
+Exploration tries four directions at distances 4, 1.5 and 0.5 cells, at most twelve
+routes. Full-length movement or necessary backtracking is preferred; shorter steps
+allow movement in cramped spaces. Resorting to short steps remains evidence of
+constrained options, rather than proof that an exit is impossible. Recent-place memory
+remains bounded. Panic retries failed exploration after 0.75 seconds and reconsiders
+opportunities on the next fixed tick. A geometry change bypasses the wait immediately.
+Pressure subsides when setbacks stop or nourishment relieves the urgent need; there
+is no independent panic flag to clear.

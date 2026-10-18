@@ -17,7 +17,7 @@ static func rounded_triangle(radius: float) -> PackedVector2Array:
 static func state_color(agent: PolygonAgent) -> Color:
 	match agent.action:
 		&"attacking",&"pursuing": return Color(.65,.31,.25)
-		&"fleeing",&"defending": return Color(.69,.49,.20)
+		&"fleeing",&"defending",&"panicking": return Color(.69,.49,.20)
 		&"resting",&"resting on ground": return Color(.35,.43,.65)
 		&"eating": return Color(.30,.57,.30)
 	return Color(.28,.46,.43)
