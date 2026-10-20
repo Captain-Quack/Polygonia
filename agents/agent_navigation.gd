@@ -25,6 +25,7 @@ func _prepare(radius: float) -> void:
 func clear_segment(from: Vector2,to: Vector2,radius: float) -> bool:
 	_prepare(radius)
 	for s in _barriers:
+		if not PhysicalQueries.bounds_overlap(from,to,s.a,s.b,radius + PhysicalQueries.WALL_RADIUS): continue
 		if is_finite(PhysicalQueries.capsule_time(from,to,s.a,s.b,radius + PhysicalQueries.WALL_RADIUS)): return false
 	return true
 func route(from: Vector2,to: Vector2,radius: float) -> Dictionary:

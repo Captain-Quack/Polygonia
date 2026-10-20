@@ -6,6 +6,8 @@ var agents: Array[PolygonAgent] = []
 var navigation: AgentNavigation
 var time := 0.0
 var seed_value := 1
+# Internal systems read this shared configuration without mutating it.
+# External callers receive a defensive copy through profile().
 var _profile := EmergencyProfile.new()
 func configure(profile: EmergencyProfile) -> bool:
 	if profile == null or not profile.validate().is_empty(): return false

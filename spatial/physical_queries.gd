@@ -6,7 +6,10 @@ var open_cost:=1.0
 var _cached_revision:=-1
 var _segments: Array=[]
 func segments() -> Array:
-	if _cached_revision==model.structures.barrier_revision:return _segments.duplicate(true)
+	_ensure_segments()
+	return _segments.duplicate(true)
+func _ensure_segments() -> void:
+	if _cached_revision==model.structures.barrier_revision:return
 	_segments=[]
 	var doors=model.structures.get_doors()
 	for wall in model.structures.get_walls():
@@ -44,7 +47,6 @@ func segments() -> Array:
 			var path=StructureData.door_path(d)
 			for i in range(path.size()-1):_segments.append({"a":path[i],"b":path[i+1],"id":d.id,"door":true})
 	_cached_revision=model.structures.barrier_revision
-	return _segments.duplicate(true)
 static func _box_time(px: float,py: float,vx: float,vy: float,length: float,radius: float) -> float:
 	var entry=0.0;var exit=1.0
 	for axis in [[px,vx,0.0,length],[py,vy,-radius,radius]]:
@@ -81,8 +83,10 @@ static func capsule_time(from: Vector2,to: Vector2,a: Vector2,b: Vector2,radius:
 
 func _hits(from: Vector2,to: Vector2,radius: float,ignore_id: int=0) -> Array:
 	var result: Array=[]
-	for segment in segments():
+	_ensure_segments()
+	for segment in _segments:
 		if segment.id==ignore_id:continue
+		if not bounds_overlap(from,to,segment.a,segment.b,radius+WALL_RADIUS):continue
 		var time=capsule_time(from,to,segment.a,segment.b,radius+WALL_RADIUS)
 		if not is_finite(time):continue
 		var position=from+(to-from)*time
@@ -100,6 +104,17 @@ func sweep(from: Vector2,to: Vector2,radius: float) -> Dictionary:
 func visibility_hits(from: Vector2,to: Vector2) -> Array:
 	if not StructureData.in_range(from) or not StructureData.in_range(to):return [{"valid":false,"reason":&"INVALID_QUERY","hit":false}]
 	return _hits(from,to,0)
+## Boolean query avoids allocating, sorting and describing every hit.
+func has_line_of_sight(from: Vector2,to: Vector2) -> bool:
+	if not StructureData.in_range(from) or not StructureData.in_range(to):return false
+	_ensure_segments()
+	for segment in _segments:
+		if not bounds_overlap(from,to,segment.a,segment.b,WALL_RADIUS):continue
+		if is_finite(capsule_time(from,to,segment.a,segment.b,WALL_RADIUS)):return false
+	return true
+## Conservative broad phase; touching bounds must still reach the exact query.
+static func bounds_overlap(from: Vector2,to: Vector2,a: Vector2,b: Vector2,radius: float) -> bool:
+	return maxf(from.x,to.x)+radius >= minf(a.x,b.x) and minf(from.x,to.x)-radius <= maxf(a.x,b.x) and maxf(from.y,to.y)+radius >= minf(a.y,b.y) and minf(from.y,to.y)-radius <= maxf(a.y,b.y)
 func crossing_option(door_id: int,profile: Dictionary) -> Dictionary:
 	var result={"kind":&"BLOCKED","reason":&"MISSING_DOOR","door_id":door_id,"action_cost":0.0}
 	var door=model.structures.get_door(door_id)

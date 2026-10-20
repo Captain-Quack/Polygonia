@@ -95,7 +95,7 @@ func tick(agent: PolygonAgent,simulation,delta: float) -> void:
 			if object == null or object.position.distance_to(destination) > 0.01 or object.revision != current.revision or not AgentPerception.visible(agent,object.position,simulation.model):
 				_fail(agent,now,revision,"Resource changed before use."); return
 			if provider == null:
-				if current.get("requirement",&"") == &"extreme_feeding" and not AgentThreatActions.eligible(agent,simulation.profile()):
+				if current.get("requirement",&"") == &"extreme_feeding" and not AgentThreatActions.eligible(agent,simulation._profile):
 					cancel(agent); return
 				provider = object.providers[current.provider]
 				if not provider.begin(agent.id):

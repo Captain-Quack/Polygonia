@@ -9,7 +9,7 @@ static func candidates(agent: PolygonAgent,simulation: AgentSimulation) -> Array
 		if agent.threats[id].until <= simulation.time: agent.threats.erase(id)
 		else: active.append(id)
 	if not active.is_empty(): return _responses(agent,simulation,active)
-	var profile = simulation.profile()
+	var profile = simulation._profile
 	if agent.timely_food or agent.ordinary_food_unchecked or not eligible(agent,profile) or agent.personality.aggression <= 0: return options
 	var count := 0
 	for id in agent.agent_beliefs:
@@ -74,7 +74,7 @@ static func _responses(agent: PolygonAgent,simulation: AgentSimulation,active: A
 		if distance < nearest_visible: defense_target = id; nearest_visible = distance
 	var observed: Dictionary = agent.agent_beliefs.get(defense_target,{})
 	if not observed.is_empty() and observed.observed_at == simulation.time:
-		var contact = agent.radius+float(observed.radius)+simulation.profile().contact_margin
+		var contact = agent.radius+float(observed.radius)+simulation._profile.contact_margin
 		if agent.position.distance_to(observed.position) <= contact or best.is_empty():
 			options.append({"kind":&"defend","key":"defend:%d" % defense_target,"target":defense_target,"position":observed.position,"score":1100.0 if best.is_empty() else 1000+60*(own_strength-enemy_strength)-10*caution+20*agent.desperation,"urgent":true,"reason":"No safe escape; defending myself." if best.is_empty() else "Defending: I appear better able to withstand this fight."})
 	return options
@@ -91,12 +91,12 @@ static func tick(agent: PolygonAgent,simulation: AgentSimulation,delta: float) -
 	if simulation.time-float(belief.observed_at) > 3:
 		agent.prey_retry[target_id] = simulation.time+3; control.cancel(agent); return
 	var visible_now = float(belief.observed_at) == simulation.time
-	var contact = agent.radius+float(belief.radius)+simulation.profile().contact_margin
+	var contact = agent.radius+float(belief.radius)+simulation._profile.contact_margin
 	if control.current.kind == &"defend" and (not visible_now or agent.position.distance_to(location) > contact):
 		agent.action = &"guarding"
 		control.route_points.clear()
 		return
-	if agent.position.distance_to(location) <= agent.radius+float(belief.radius)+simulation.profile().contact_margin:
+	if agent.position.distance_to(location) <= agent.radius+float(belief.radius)+simulation._profile.contact_margin:
 		if visible_now:
 			agent.action = &"defending" if control.current.kind == &"defend" else &"attacking"
 			simulation.combat.queue_strike(agent.id,target_id,control.current.kind == &"pursue")

@@ -8,7 +8,7 @@ func resolve(simulation: AgentSimulation) -> Array:
 	var events: Array = []
 	var damage: Dictionary = {}
 	var used: Dictionary = {}
-	var profile = simulation.profile()
+	var profile = simulation._profile
 	# Validate every strike before any health mutation; simultaneous deaths are symmetric.
 	for strike in _queued:
 		var actor = simulation.get_agent(strike.actor)
@@ -17,7 +17,7 @@ func resolve(simulation: AgentSimulation) -> Array:
 		if not actor.body.alive() or not target.body.alive() or used.has(actor.id): continue
 		if simulation.time < float(_next_strike.get(actor.id,0)): continue
 		if actor.position.distance_to(target.position) > actor.radius+target.radius+profile.contact_margin: continue
-		if not simulation.model.physical.visibility_hits(actor.position,target.position).is_empty(): continue
+		if not simulation.model.physical.has_line_of_sight(actor.position,target.position): continue
 		used[actor.id] = true
 		_next_strike[actor.id] = simulation.time+profile.strike_interval
 		var amount = profile.strike_damage*(1-.5*actor.body.deprivation)
