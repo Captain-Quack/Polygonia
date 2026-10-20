@@ -1,7 +1,7 @@
 class_name AgentPerception
 extends RefCounted
 static func visible(agent: PolygonAgent,point: Vector2,model: WorldModel) -> bool:
-	return agent.position.distance_to(point) <= agent.sight_range and model.physical.visibility_hits(agent.position,point).is_empty()
+	return agent.sight_range >= 0 and agent.position.distance_squared_to(point) <= agent.sight_range*agent.sight_range and model.physical.has_line_of_sight(agent.position,point)
 static func observe(agent: PolygonAgent,objects: WorldObjectStore,model: WorldModel,now: float) -> void:
 	var seen: Dictionary = {}
 	for object in objects.all():

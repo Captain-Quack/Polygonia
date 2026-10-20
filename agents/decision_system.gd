@@ -6,7 +6,7 @@ static func candidates(agent: PolygonAgent,now: float,revision: int,simulation: 
 		var b: Dictionary = agent.beliefs[key]
 		if not b.available: continue
 		var admitted = agent.controller.current.get("key","") == key and agent.controller.provider != null and agent.controller.provider.active and agent.controller.provider.has_user(agent.id)
-		if not admitted and b.get("requirement",&"") == &"extreme_feeding" and (simulation == null or not AgentThreatActions.eligible(agent,simulation.profile())): continue
+		if not admitted and b.get("requirement",&"") == &"extreme_feeding" and (simulation == null or not AgentThreatActions.eligible(agent,simulation._profile)): continue
 		if now < b.retry_at and b.failed_revision == revision: continue
 		if not admitted and b.interaction == &"eat" and agent.body.hunger() < 0.25: continue
 		if b.interaction == &"rest" and agent.body.fatigue < AgentNeeds.REST_TARGET: continue

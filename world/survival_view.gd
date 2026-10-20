@@ -9,6 +9,8 @@ var inspecting := false
 var inspect_button: CheckButton
 var description: Label
 var clock_label: Label
+var _triangle = AgentRenderer.rounded_triangle(1.0)
+var _remains = PackedVector2Array([Vector2(.9,0),Vector2(.25,.24),Vector2(-.4,.85),Vector2(-.3,.15),Vector2(-.75,-.6),Vector2(-.05,-.3),Vector2(.35,-.65),Vector2(.3,-.08)])
 @onready var model: WorldModel = get_parent().get_node("WorldModel")
 @onready var grid = get_parent().get_node("GridRenderer")
 @onready var editor = get_parent().get_node("ConstructionPreview")
@@ -25,6 +27,10 @@ func _build_controls() -> void:
 	for label in ["1×","2×","4×"]: rate.add_item(label)
 	rate.item_selected.connect(func(index): speed = [1.0,2.0,4.0][index])
 	clock_label = Label.new(); row.add_child(clock_label)
+	var blood = CheckButton.new(); blood.text = "Blood effects"; blood.button_pressed = model.simulation.gore.enabled
+	blood.toggled.connect(func(value): model.simulation.gore.enabled = value)
+	box.add_child(blood)
+	blood.add_theme_color_override("font_color",Color(.2,.28,.25))
 	inspect_button = CheckButton.new(); inspect_button.text = "Inspect Polygon"; box.add_child(inspect_button)
 	inspect_button.toggled.connect(_set_inspecting)
 	space_inspector.mode.toggled.connect(func(on):
@@ -90,19 +96,26 @@ func _draw() -> void:
 			draw_style_box(_rest_style(color),Rect2(p-Vector2(.3,.18)*cell,Vector2(.6,.36)*cell))
 		elif object.definition.definition_id == &"corpse":
 			draw_set_transform(p)
-			draw_colored_polygon(AgentRenderer.rounded_triangle(.2*cell),Color(color,.5))
-			draw_line(Vector2(-.13,-.1)*cell,Vector2(.13,.1)*cell,color,1.5,true)
+			draw_set_transform(p,0,Vector2.ONE*.2*cell)
+			draw_colored_polygon(_remains,Color(.6,.38,.34,.9))
+			draw_line(Vector2(-.35,-.1),Vector2(.4,.12),Color(.92,.75,.59),.18,true)
+			draw_circle(Vector2(-.2,.18),.15,Color(.8,.6,.45))
 			draw_set_transform(Vector2.ZERO)
 		else:
 			for offset in [Vector2(-.1,.07),Vector2(.1,.07),Vector2(0,-.1)]: draw_circle(p+offset*cell,.085*cell,color,true,-1,true)
 	for agent in model.simulation.agents:
 		if agent.death_handled: continue
 		var pose = agent.motion.sample(accumulator / SIMULATION_STEP)
-		var points = AgentRenderer.rounded_triangle(agent.radius*cell)
-		draw_set_transform(pose.position*cell,pose.facing)
-		var color = AgentRenderer.state_color(agent)
-		draw_colored_polygon(points,color)
-		points.append(points[0]); draw_polyline(points,Color(.2,.29,.27),1.4,true)
+		var feedback = model.simulation.gore.appearance(agent.id,maxf(0,model.simulation.gore.time-.1+accumulator))
+		var squash = Vector2(1-.25*feedback.flash-.1*feedback.bite,1+.18*feedback.flash+.1*feedback.bite)
+		draw_set_transform(pose.position*cell,pose.facing+feedback.bite*.12,squash*agent.radius*cell)
+		var color = AgentRenderer.state_color(agent).lerp(Color(.85,.05,.045),feedback.flash*.8)
+		draw_colored_polygon(_triangle,color)
+		if feedback.blood > 0:
+			draw_colored_polygon(PackedVector2Array([Vector2(.73,0),Vector2(.05,-.25),Vector2(.12,.28)]),Color(.43,.02,.035,feedback.blood*.85))
+			if feedback.blood > .5: draw_circle(Vector2(-.25,.25),.15,Color(.48,.025,.04,.7))
+		var outline = _triangle.duplicate(); outline.append(outline[0])
+		draw_polyline(outline,Color(.16,.23,.21),1.4/(agent.radius*cell),true)
 		draw_set_transform(Vector2.ZERO)
 		if agent.id == selected_id:
 			draw_circle(pose.position*cell,.32*cell,Color(.3,.55,.45),false,1.5,true)

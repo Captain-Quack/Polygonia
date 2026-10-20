@@ -50,16 +50,30 @@ func tick(agent: PolygonAgent,simulation,delta: float) -> void:
 			agent.body.apply_effects({&"fatigue":-AgentNeeds.GROUND_REST_RECOVERY*delta})
 		&"idle": agent.action = &"idle"
 		&"explore":
-			if now < wait_until: return
+			var panic = EmergencyAssessment.is_panicking(agent)
+			if panic:
+				agent.action = &"panicking"
+				agent.decision_reason = "Panicking: searching for a way out."
+				agent.next_decision = minf(agent.next_decision,now+.1)
+				wait_until = minf(wait_until,now+.75)
+			# New geometry can provide an exit while the old retry is waiting.
+			if route_revision != revision and route_points.is_empty(): wait_until = now
+			if now < wait_until:
+				if not panic: agent.action = &"waiting: no route"
+				return
 			if route_points.is_empty():
 				var search = agent.exploration.choose(agent,nav)
+				route_revision = revision
 				if search.is_empty():
 					agent.report_setback(now)
-					wait_until = now + 3.0; agent.action = &"waiting: no route"; return
-				route_points = search.points; route_revision = revision
-			agent.action = &"searching"
+					wait_until = now + (.75 if panic else 3.0)
+					agent.action = &"panicking" if panic else &"waiting: no route"
+					return
+				if search.get("constrained",false): agent.report_setback(now)
+				route_points = search.points
+			agent.action = &"panicking" if panic else &"searching"
 			if not _move(agent,nav,delta):
-				agent.report_setback(now); route_points.clear(); wait_until = now + 1.0
+				agent.report_setback(now); route_points.clear(); wait_until = now + (.75 if panic else 1.0)
 			elif route_points.is_empty(): agent.exploration.reached(agent.position)
 
 		&"interact":
@@ -81,13 +95,16 @@ func tick(agent: PolygonAgent,simulation,delta: float) -> void:
 			if object == null or object.position.distance_to(destination) > 0.01 or object.revision != current.revision or not AgentPerception.visible(agent,object.position,simulation.model):
 				_fail(agent,now,revision,"Resource changed before use."); return
 			if provider == null:
-				if current.get("requirement",&"") == &"extreme_feeding" and not AgentThreatActions.eligible(agent,simulation.profile()):
+				if current.get("requirement",&"") == &"extreme_feeding" and not AgentThreatActions.eligible(agent,simulation._profile):
 					cancel(agent); return
 				provider = object.providers[current.provider]
 				if not provider.begin(agent.id):
 					_fail(agent,now,revision,"Resource busy or depleted."); return
 			agent.action = &"eating" if current.interaction == &"eat" else &"resting"
+			var previous_progress = progress
 			progress += delta
+			if current.get("requirement",&"") == &"extreme_feeding" and provider.active and provider.has_user(agent.id) and int(progress/.5) > int(previous_progress/.5):
+				simulation.gore.bite(agent.id,object.position,agent.position)
 			if progress >= maxf(0.1,provider.definition.duration):
 				var effects = provider.complete(agent.id)
 				if not effects.is_empty():

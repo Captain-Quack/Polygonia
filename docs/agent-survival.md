@@ -174,3 +174,40 @@ threats. Behavior uses coarse observed condition, not exact hidden enemy health.
 These heuristics do not implement negotiation, surrender, combat formations, or freeze
 responses. They do not establish clinical fidelity. The tuning remains centralized in
 the emergency profile where rates and eligibility limits are configurable.
+
+## Panic during blocked exploration
+
+Panic is derived from existing constraint pressure (at least 50%) and desperation
+(at least 65%); it is not another stored need or separate state machine. During
+exploration it appears as 'Panicking' with the reason 'Panicking: searching for a way
+out.' Comfortable failed searches continue to wait calmly. Panic does not bypass
+ordinary food choices, threat responses, wall clearance, or predation eligibility.
+
+Exploration tries four directions at distances 4, 1.5 and 0.5 cells, at most twelve
+routes. Full-length movement or necessary backtracking is preferred; shorter steps
+allow movement in cramped spaces. Resorting to short steps remains evidence of
+constrained options, rather than proof that an exit is impossible. Recent-place memory
+remains bounded. Panic retries failed exploration after 0.75 seconds and reconsiders
+opportunities on the next fixed tick. A geometry change bypasses the wait immediately.
+Pressure subsides when setbacks stop or nourishment relieves the urgent need; there
+is no independent panic flag to clear.
+
+## Blood and impact presentation
+
+Validated contact hits produce directional spray and brief hit flash/squash. Wounded
+movement leaves short trails; traumatic deaths produce larger bursts, angular fragments
+and a darkening pool. Corpse feeding shows tearing pulses, fragments and blood on the
+eater. Corpse geometry has a broken outline and pale interior details. These effects
+are cosmetic: they add no damage, food, collisions, threats or perception information.
+
+`AgentGoreEffects` owns presentation data with a private seeded RNG, at most 192 airborne
+particles, 384 ground stains and 128 actor-feedback records. Particles settle in under a
+second, stains dry/fade over 90 simulated seconds, nearby marks merge, and old actor
+feedback expires. No per-particle nodes or physics bodies are created. Sampling feedback
+does not mutate state. Pause and simulation-speed controls affect the same visual clock.
+
+The ground renderer sits above floors but below walls, resources, agents and editor
+outlines. Stains are local and translucent; tiny airborne detail is omitted when zoomed
+far out, and offscreen effects are culled. Agent outlines remain legible above the blood.
+Use **Blood effects** in the inspection panel to disable and clear the effects. This
+changes presentation only; the simulation follows the same outcomes with effects off.
