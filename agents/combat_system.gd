@@ -26,11 +26,15 @@ func resolve(simulation: AgentSimulation) -> Array:
 		target.agent_beliefs[actor.id] = AgentPerception.agent_snapshot(actor,simulation.time)
 		target.next_decision = simulation.time
 		target.remember_event("Attacked by Polygon %d." % actor.id)
+		strike.position = target.position
+		strike.direction = (target.position-actor.position).normalized()
+		strike.amount = amount
 		events.append(strike)
 	for id in damage:
 		var target = simulation.get_agent(id)
 		target.body.damage(damage[id])
 		if not target.body.alive(): target.controller.cancel(target); target.action = &"dead"
+	for event in events: simulation.gore.hit(event.target,event.position,event.direction,event.amount)
 	_queued.clear()
 	return events
 func forget(id: int) -> void:

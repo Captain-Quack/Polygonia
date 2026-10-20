@@ -31,8 +31,9 @@ func spawn(point: Vector2) -> PolygonAgent:
 func remove(id: int) -> void:
 	for agent in agents:
 		if agent.id == id:
-			agent.controller.cancel(agent); combat.forget(id); agents.erase(agent); return
+			agent.controller.cancel(agent); combat.forget(id); gore.remove_actor(id); agents.erase(agent); return
 var combat := AgentCombatSystem.new()
+var gore := AgentGoreEffects.new()
 func get_agent(id: int) -> PolygonAgent:
 	for agent in agents:
 		if agent.id == id: return agent
@@ -40,6 +41,7 @@ func get_agent(id: int) -> PolygonAgent:
 func tick(delta: float) -> void:
 	if not is_finite(delta) or delta <= 0: return
 	time += delta
+	gore.advance(delta)
 	for agent in agents:
 		agent.motion.begin(agent.position,agent.facing)
 		agent.body.tick_deprivation(delta,_profile)
@@ -68,6 +70,7 @@ func tick(delta: float) -> void:
 	combat.resolve(self)
 	for agent in agents:
 		if not agent.body.alive(): AgentDeathSystem.materialize(agent,self)
+		else: gore.follow(agent)
 	objects.remove_depleted()
 func occupied(capsule: Dictionary) -> bool:
 	var path: PackedVector2Array = capsule.path

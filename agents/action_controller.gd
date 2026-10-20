@@ -101,7 +101,10 @@ func tick(agent: PolygonAgent,simulation,delta: float) -> void:
 				if not provider.begin(agent.id):
 					_fail(agent,now,revision,"Resource busy or depleted."); return
 			agent.action = &"eating" if current.interaction == &"eat" else &"resting"
+			var previous_progress = progress
 			progress += delta
+			if current.get("requirement",&"") == &"extreme_feeding" and provider.active and provider.has_user(agent.id) and int(progress/.5) > int(previous_progress/.5):
+				simulation.gore.bite(agent.id,object.position,agent.position)
 			if progress >= maxf(0.1,provider.definition.duration):
 				var effects = provider.complete(agent.id)
 				if not effects.is_empty():

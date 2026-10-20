@@ -3,6 +3,7 @@ extends RefCounted
 static func materialize(agent: PolygonAgent,simulation: AgentSimulation) -> void:
 	if agent.body.alive() or agent.death_handled: return
 	agent.death_handled = true
+	simulation.gore.death(agent.id,agent.position,simulation.gore.wounded(agent.id))
 	agent.controller.cancel(agent); agent.action = &"dead"
 	simulation.combat.forget(agent.id)
 	var definition = load("res://objects/definitions/corpse.tres").duplicate(true)
