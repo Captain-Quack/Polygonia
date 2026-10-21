@@ -22,8 +22,17 @@ func reconsider(agent: PolygonAgent,options: Array,now: float,urgent: bool = fal
 			if existing.get("position") == current.get("position"):
 				current.merge(existing,true); agent.decision_reason = existing.get("reason",agent.decision_reason); return
 			best = existing
+	# Defending a meal retains its admission; fleeing and other interruptions release it.
+	var guarded: InteractionProvider
+	var guarded_progress = progress
+	var meal_key = current.get("meal_key",current.get("key",""))
+	var keep_meal = best.kind == &"defend" or (best.kind == &"interact" and best.key == meal_key)
+	if keep_meal and provider is FoodInteractionProvider and provider.active and provider.has_user(agent.id):
+		guarded = provider; provider = null
 	cancel(agent)
+	if guarded != null: provider = guarded; progress = guarded_progress
 	current = best.duplicate(true)
+	if guarded != null and best.kind == &"defend": current.meal_key = meal_key
 	agent.decision_reason = best.get("reason","Balancing needs.")
 	if best.has("route_points"):
 		route_points = best.route_points.duplicate(); route_revision = best.route_revision
@@ -42,6 +51,8 @@ func tick(agent: PolygonAgent,simulation,delta: float) -> void:
 	var now: float = simulation.time
 	var nav: AgentNavigation = simulation.navigation
 	var revision: int = simulation.model.structures.traversal_revision
+	if current.kind == &"contest_food":
+		AgentFoodSocial.tick_contest(agent,simulation,delta); return
 	if current.kind in [&"pursue",&"flee",&"defend"]:
 		AgentThreatActions.tick(agent,simulation,delta); return
 	match current.kind:
@@ -100,7 +111,7 @@ func tick(agent: PolygonAgent,simulation,delta: float) -> void:
 				provider = object.providers[current.provider]
 				if not provider.begin(agent.id):
 					_fail(agent,now,revision,"Resource busy or depleted."); return
-			agent.action = &"eating" if current.interaction == &"eat" else &"resting"
+			agent.action = (&"sharing food" if now < agent.food_gesture_until else &"eating") if current.interaction == &"eat" else &"resting"
 			var previous_progress = progress
 			progress += delta
 			if current.get("requirement",&"") == &"extreme_feeding" and provider.active and provider.has_user(agent.id) and int(progress/.5) > int(previous_progress/.5):
@@ -129,3 +140,4 @@ func _move(agent: PolygonAgent,nav: AgentNavigation,delta: float) -> bool:
 		agent.motion.record(next,agent.facing)
 		if agent.position.distance_to(target) < 0.001: route_points.pop_front()
 	return true
+

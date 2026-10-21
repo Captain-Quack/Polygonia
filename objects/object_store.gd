@@ -47,3 +47,20 @@ func remove_depleted() -> void:
 		for provider in object.providers:
 			if provider.stock != 0: depleted = false; break
 		if depleted: remove(object.id)
+
+
+## Split one circle into an independently reserved pile; callers validate social/physical access.
+func share_food(source_id: int,owner: int,recipient: int,point: Vector2) -> PolygonWorldObject:
+	var source = get_object(source_id)
+	if source == null or not source.active or not StructureData.in_range(point) or source.providers.size() != 1: return null
+	var provider = source.providers[0] as FoodInteractionProvider
+	if provider == null: return null
+	var portion = provider.split_one(owner,recipient)
+	if portion == null: return null
+	var object = PolygonWorldObject.new(source.definition)
+	object.providers[0] = portion
+	object.id = _next_id; _next_id += 1
+	object.position = point
+	_objects[object.id] = object
+	changed.emit()
+	return object

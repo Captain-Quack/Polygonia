@@ -24,7 +24,7 @@ static func observe(agent: PolygonAgent,objects: WorldObjectStore,model: WorldMo
 			agent.remember_event("The remembered resource is no longer here.")
 
 static func agent_snapshot(other: PolygonAgent,now: float) -> Dictionary:
-	return {"position":other.position,"observed_at":now,"radius":other.radius,"condition":ceilf(other.body.health*3)/3.0}
+	return {"position":other.position,"observed_at":now,"radius":other.radius,"condition":ceilf(other.body.health*3)/3.0,"hunger":floorf(other.body.hunger()*3)/3.0}
 static func observe_agents(agent: PolygonAgent,agents: Array[PolygonAgent],model: WorldModel,now: float) -> void:
 	var seen: Dictionary = {}
 	for other in agents:
@@ -33,10 +33,11 @@ static func observe_agents(agent: PolygonAgent,agents: Array[PolygonAgent],model
 			agent.agent_beliefs.erase(other.id); agent.threats.erase(other.id); continue
 		seen[other.id] = true
 		agent.agent_beliefs[other.id] = agent_snapshot(other,now)
-		if other.controller.current.get("target",0) == agent.id and other.controller.current.get("kind") == &"pursue":
+		if other.controller.current.get("target",0) == agent.id and other.controller.current.get("kind") in [&"pursue",&"contest_food"]:
 			agent.threats[other.id] = {"position":other.position,"until":now+3.0}
 		elif agent.threats.has(other.id): agent.threats[other.id].position = other.position
 	for id in agent.agent_beliefs.keys():
 		var belief: Dictionary = agent.agent_beliefs[id]
 		if not seen.has(id) and (now-belief.observed_at>3 or visible(agent,belief.position,model)):
 			agent.agent_beliefs.erase(id)
+

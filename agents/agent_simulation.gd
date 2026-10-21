@@ -60,6 +60,7 @@ func tick(delta: float) -> void:
 		if time >= agent.next_perception or urgent:
 			AgentPerception.observe(agent,objects,model,time)
 			agent.next_perception = time+.25
+	AgentFoodSocial.share(self)
 	for agent in agents:
 		if not agent.body.alive(): continue
 		var urgent = (agent.assessment.urgency > 0 and agent.assessment.harm_rate > 0) or AgentThreatActions.eligible(agent,_profile) or not agent.threats.is_empty()
@@ -81,3 +82,4 @@ func occupied(capsule: Dictionary) -> bool:
 		for i in range(path.size()-1):
 			if is_finite(PhysicalQueries.capsule_time(agent.position,agent.position,path[i],path[i+1],agent.radius+capsule.radius)): return true
 	return false
+

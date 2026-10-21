@@ -23,6 +23,9 @@ static func candidates(agent: PolygonAgent,now: float,revision: int,simulation: 
 	result.sort_custom(func(a,b): return a.score > b.score)
 	if simulation != null:
 		result = AgentOptionEvaluator.evaluate(agent,result,simulation)
-		result.append_array(AgentThreatActions.candidates(agent,simulation))
+		var food_contests = AgentFoodSocial.candidates(agent,simulation)
+		# A food contest supersedes predation; avoid assessing both sets of routes.
+		result.append_array(food_contests if not food_contests.is_empty() else AgentThreatActions.candidates(agent,simulation))
 		result.sort_custom(func(a,b): return a.score > b.score)
 	return result
+

@@ -22,6 +22,9 @@ func remember_event(message: String) -> void:
 	recent_events.append(message)
 	if recent_events.size() > 8: recent_events.pop_front()
 
+var next_food_share := 0.0
+var food_gesture_until := 0.0
+
 var personality := AgentPersonality.new()
 var assessment: Dictionary = {}
 var decision_reason := "Observing the world."
@@ -44,7 +47,7 @@ var death_handled := false
 var corpse_id := 0
 
 func inspection_text() -> String:
-	return "Polygon %d · %s\nHunger %d%% · Fatigue %d%% · Health %d%%\nUrgency %d%% · Deprivation %d%% · Impairment %d%%\nDesperation %d%% · Constraints %d%%\nTarget: %s\n%s" % [id,str(action).capitalize(),roundi(body.hunger()*100),roundi(body.fatigue*100),roundi(body.health*100),roundi(float(assessment.get("urgency",0))*100),roundi(body.deprivation*100),roundi(float(assessment.get("impairment",0))*100),roundi(desperation*100),roundi(constraint_pressure*100),str(controller.current.get("key","none")),decision_reason]
+	return "Polygon %d · %s\nHunger %d%% · Fatigue %d%% · Health %d%%\nUrgency %d%% · Deprivation %d%% · Impairment %d%%\nDesperation %d%% · Constraints %d%%\nKindness %d%%\nTarget: %s\n%s" % [id,str(action).capitalize(),roundi(body.hunger()*100),roundi(body.fatigue*100),roundi(body.health*100),roundi(float(assessment.get("urgency",0))*100),roundi(body.deprivation*100),roundi(float(assessment.get("impairment",0))*100),roundi(desperation*100),roundi(constraint_pressure*100),roundi(personality.kindness*100),str(controller.current.get("key","none")),decision_reason]
 
 ## Frustrated access and resulting motivation are separate from physical impairment.
 var constraint_pressure := 0.0
@@ -52,3 +55,4 @@ var desperation := 0.0
 var last_setback_at := -INF
 func report_setback(now: float) -> void:
 	last_setback_at = now
+

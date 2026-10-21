@@ -102,7 +102,12 @@ func _draw() -> void:
 			draw_circle(Vector2(-.2,.18),.15,Color(.8,.6,.45))
 			draw_set_transform(Vector2.ZERO)
 		else:
-			for offset in [Vector2(-.1,.07),Vector2(.1,.07),Vector2(0,-.1)]: draw_circle(p+offset*cell,.085*cell,color,true,-1,true)
+			# Keep an admitted meal beside its eater so small shared piles stay visible.
+			var anchor = p
+			for provider in object.providers:
+				if provider is FoodInteractionProvider and provider.claimed(): anchor += Vector2(0,-.34)*cell; break
+			for offset in FoodVisuals.offsets(FoodVisuals.count(object)):
+				draw_circle(anchor+offset*cell,.085*cell,color,true,-1,true)
 	for agent in model.simulation.agents:
 		if agent.death_handled: continue
 		var pose = agent.motion.sample(accumulator / SIMULATION_STEP)
@@ -126,3 +131,4 @@ func _rest_style(color: Color) -> StyleBoxFlat:
 	var style = StyleBoxFlat.new(); style.bg_color = Color(color,.25); style.border_color = color
 	style.set_border_width_all(2); style.set_corner_radius_all(8)
 	return style
+
