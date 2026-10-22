@@ -7,11 +7,13 @@ static func desperate(agent: PolygonAgent,profile: EmergencyProfile) -> bool:
 static func share(simulation: AgentSimulation) -> void:
 	for donor in simulation.agents:
 		var control = donor.controller
-		if not donor.body.alive() or donor.personality.kindness < .6 or donor.body.nourishment < .25 or donor.desperation >= .65: continue
+		if not donor.body.alive() or donor.personality.kindness <= 0 or donor.body.nourishment < .25 or donor.desperation >= .65: continue
 		if not donor.threats.is_empty() or simulation.time < donor.next_food_share: continue
 		if control.current.get("kind") != &"interact" or not control.provider is FoodInteractionProvider: continue
 		var provider = control.provider as FoodInteractionProvider
 		if provider.portion_count() < 2 or not provider.has_user(donor.id): continue
+		var retained_nourishment=float(provider.meal_effects().get(&"nourishment",0))*(provider.portion_count()-1.0)/provider.portion_count()
+		if donor.body.nourishment+retained_nourishment < .25+.2*donor.memory.scarcity: continue
 		var source = simulation.objects.get_object(control.current.source)
 		if source == null or donor.position.distance_to(source.position) > .25: continue
 		var recipient: PolygonAgent
@@ -24,6 +26,9 @@ static func share(simulation: AgentSimulation) -> void:
 			if not AgentPerception.visible(other,source.position,simulation.model): continue
 			# Hunger is coarse visible distress, like the existing condition snapshot.
 			var need: float = observed.hunger
+			if AgentCognition.willingness(donor,id,simulation.time)<.6: continue
+			var history=donor.memory.person(id,simulation.time)
+			need += .12*history.help-.2*history.harm
 			if need > greatest_need: recipient = other; greatest_need = need
 		if recipient == null: continue
 		var portion = simulation.objects.share_food(source.id,donor.id,recipient.id,recipient.position)
@@ -33,7 +38,10 @@ static func share(simulation: AgentSimulation) -> void:
 		donor.food_gesture_until = simulation.time+.5
 		donor.remember_event("Shared a circle of food with Polygon %d." % recipient.id)
 		recipient.remember_event("Polygon %d shared food with me." % donor.id)
+		donor.memory.record(&"gave",donor.position,simulation.time,recipient.id,portion.id)
+		recipient.memory.record(&"received",recipient.position,simulation.time,donor.id,portion.id)
 		# The donor's remaining expected effects changed, but its meal progress did not.
+		control.current.expected_effects=provider.meal_effects()
 		AgentPerception.observe(donor,simulation.objects,simulation.model,simulation.time)
 
 static func adopt(agent: PolygonAgent,object: PolygonWorldObject,simulation: AgentSimulation,reason: String) -> void:
@@ -66,6 +74,7 @@ static func candidates(agent: PolygonAgent,simulation: AgentSimulation) -> Array
 		if considered >= 4: break
 		considered += 1
 		var route = simulation.navigation.route(agent.position,belief.position,agent.radius)
+		if route.status==&"DEFERRED": continue
 		if route.status != &"OK":
 			belief.retry_at = simulation.time+3; belief.failed_revision = simulation.model.structures.traversal_revision
 			agent.report_setback(simulation.time); continue
@@ -101,6 +110,7 @@ static func tick_contest(agent: PolygonAgent,simulation: AgentSimulation,delta: 
 	# Rebuild only after geometry changes; food positions are otherwise immutable.
 	if control.route_revision != simulation.model.structures.traversal_revision or control.route_points.is_empty():
 		var route = simulation.navigation.route(agent.position,object.position,agent.radius)
+		if route.status==&"DEFERRED": agent.action=&"waiting: route assessment"; return
 		if route.status != &"OK": control.cancel(agent); agent.report_setback(simulation.time); return
 		control.route_points = route.points; control.route_revision = simulation.model.structures.traversal_revision
 	agent.action = &"challenging for food"

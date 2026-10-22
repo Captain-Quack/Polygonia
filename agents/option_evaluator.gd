@@ -8,10 +8,11 @@ static func evaluate(agent: PolygonAgent,options: Array,simulation: AgentSimulat
 	var timely_food := false
 	var ordinary_food_unchecked := false
 	var interactions: Array = []
+	var social_evidence=AgentCognition.social_risks(agent,simulation.time)
 	for option in options:
 		option.reason = "Balancing hunger and fatigue."
 		if option.kind == &"interact":
-			option.score *= 1.0 + minf(1,float(agent.familiarity.get(option.key,0))/5.0)*agent.body.deprivation*agent.personality.persistence*.25
+			AgentCognition.adjust(agent,option,simulation.time,social_evidence)
 			interactions.append(option)
 	# Always assess the current intention. Rotate only its alternatives so an
 	# impaired agent cannot abandon a meal just because its slot was not visited.
@@ -35,8 +36,12 @@ static func evaluate(agent: PolygonAgent,options: Array,simulation: AgentSimulat
 			option.reason = "Opportunity awaits route assessment."
 			continue
 		validated += 1
-		var route = simulation.navigation.route(agent.position,option.position,agent.radius)
+		var route = AgentCognition.route(agent,option,simulation)
 		option.route_status = route.status
+		if route.status==&"DEFERRED":
+			if option.interaction==&"eat" and option.get("requirement",&"")==&"": ordinary_food_unchecked=true
+			option.score=0.0; option.reason="Waiting for route assessment; accessibility is still unknown."
+			continue
 		if route.status != &"OK":
 			agent.report_setback(simulation.time)
 			option.score = -1
@@ -64,6 +69,9 @@ static func evaluate(agent: PolygonAgent,options: Array,simulation: AgentSimulat
 				option.score += (100.0 if timely else 10.0)+10.0/(1.0+option.relief_after)
 				option.reason = "Food cannot wait: ongoing starvation threatens health." if timely else "Attempting the best remaining chance of nourishment."
 			option.urgent = weights.danger
+		option.score *= 1.0-.35*float(route.get("risk",0))*(1-.7*agent.desperation)
+		if route.get("detour",false): option.reason = "Taking a longer remembered route to avoid danger."
+		elif not option.get("memory_reason","").is_empty(): option.reason += " "+option.memory_reason
 	for option in options:
 		if option.kind == &"explore" and weights.danger and not food_found:
 			option.score = 20.0
@@ -74,3 +82,4 @@ static func evaluate(agent: PolygonAgent,options: Array,simulation: AgentSimulat
 	agent.timely_food = timely_food
 	agent.ordinary_food_unchecked = ordinary_food_unchecked
 	return options
+

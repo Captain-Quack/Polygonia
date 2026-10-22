@@ -11,6 +11,7 @@ var probe_visible:=false
 var probe_start:=Vector2.ZERO
 var probe_end:=Vector2.ZERO
 var panel: PanelContainer
+var content: VBoxContainer
 var description: Label
 var mode: CheckButton
 var open_button: Button
@@ -30,7 +31,9 @@ func _ready() -> void:
 	style.set_corner_radius_all(8);style.content_margin_left=14;style.content_margin_right=14;style.content_margin_top=10;style.content_margin_bottom=12
 	panel.add_theme_stylebox_override("panel",style)
 	panel.add_theme_color_override("font_color",Color(.2,.28,.25))
-	var box:=VBoxContainer.new();box.add_theme_constant_override("separation",7);panel.add_child(box)
+	var scroll:=ScrollContainer.new();scroll.horizontal_scroll_mode=ScrollContainer.SCROLL_MODE_DISABLED;panel.add_child(scroll)
+	var box:=VBoxContainer.new();box.add_theme_constant_override("separation",7);scroll.add_child(box)
+	box.size_flags_horizontal=Control.SIZE_EXPAND_FILL;content=box
 	var title:=Label.new();title.text="Spaces & doors";box.add_child(title)
 	mode=CheckButton.new();mode.text="Inspect / operate";box.add_child(mode)
 	mode.toggled.connect(func(on):
@@ -65,6 +68,7 @@ func _layout() -> void:
 	var width=minf(330,maxf(200,get_viewport_rect().size.x-32))
 	panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	panel.offset_left=-width-20;panel.offset_right=-20;panel.offset_top=20
+	panel.offset_bottom=maxf(100,get_viewport_rect().size.y-20)
 	panel.custom_minimum_size.x=width
 func _connect_menu() -> void:
 	var menu=get_parent().get_node("CanvasLayer/ConstructionMenu")
@@ -158,3 +162,4 @@ func _draw() -> void:
 		draw_circle(probe_end*cell,.2*cell,Color(.7,.3,.2,.3))
 func _notification(what: int) -> void:
 	if what==NOTIFICATION_APPLICATION_FOCUS_OUT:probing=false
+

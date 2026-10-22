@@ -30,6 +30,8 @@ func _initialize() -> void:
 			if is_finite(PhysicalQueries.capsule_time(a,b,segment.a,segment.b,PhysicalQueries.WALL_RADIUS)): exact_sight = false
 			if is_finite(PhysicalQueries.capsule_time(a,b,segment.a,segment.b,.2+PhysicalQueries.WALL_RADIUS)): exact_sweep = true
 		check(world.physical.has_line_of_sight(a,b) == exact_sight,"boolean sight matches unpruned exact geometry")
+		var observer=PolygonAgent.new(); observer.position=a; observer.sight_range=a.distance_to(b)+.01
+		check(AgentPerception.visible(observer,b,world,{"sight":{},"people":{},"resources":{}})==exact_sight,"perception phase pruning preserves exact sight at walls, circles and tangencies")
 		check(world.physical.sweep(a,b,.2).hit == exact_sweep,"broad phase preserves exact body collision")
 	check(not world.physical.has_line_of_sight(Vector2(INF,0),Vector2.ZERO),"invalid sight is blocked")
 	var copy := world.physical.segments()
@@ -41,3 +43,4 @@ func _initialize() -> void:
 	check(not AgentPerception.visible(observer,Vector2.ZERO,world),"negative sight range sees nothing")
 	world.free()
 	print("agent_query_equivalence: %d failures" % failures); quit(1 if failures else 0)
+

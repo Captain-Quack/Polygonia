@@ -106,9 +106,19 @@ func visibility_hits(from: Vector2,to: Vector2) -> Array:
 	return _hits(from,to,0)
 ## Boolean query avoids allocating, sorting and describing every hit.
 func has_line_of_sight(from: Vector2,to: Vector2) -> bool:
-	if not StructureData.in_range(from) or not StructureData.in_range(to):return false
 	_ensure_segments()
+	return sight_in_segments(from,to,_segments)
+## Trusted perception uses these references only during its immutable observation phase.
+func _sight_segments(point: Vector2,radius: float) -> Array:
+	_ensure_segments()
+	var extent=Vector2.ONE*radius
+	var nearby: Array=[]
 	for segment in _segments:
+		if bounds_overlap(point-extent,point+extent,segment.a,segment.b,WALL_RADIUS): nearby.append(segment)
+	return nearby
+static func sight_in_segments(from: Vector2,to: Vector2,candidates: Array) -> bool:
+	if not StructureData.in_range(from) or not StructureData.in_range(to):return false
+	for segment in candidates:
 		if not bounds_overlap(from,to,segment.a,segment.b,WALL_RADIUS):continue
 		if is_finite(capsule_time(from,to,segment.a,segment.b,WALL_RADIUS)):return false
 	return true
@@ -131,3 +141,4 @@ func crossing_option(door_id: int,profile: Dictionary) -> Dictionary:
 	result.kind=&"PASS" if door.state==&"OPEN" else &"OPEN_THEN_PASS"
 	result.reason=&"";result.action_cost=0.0 if door.state==&"OPEN" else open_cost
 	return result
+

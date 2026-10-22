@@ -30,25 +30,26 @@ It prints median/p95 CPU time and a final digest of agent positions (rounded to
 Compare the same script, engine and machine against the baseline revision c948aa6.
 Timings are observations, never pass/fail thresholds or rendered FPS measurements.
 
-## Remaining costs
+## Phase 2 scaling changes
 
-- Agent perception still visits every other agent each tick. A spatial candidate index
-  is the next scaling improvement for large populations, particularly spread-out ones.
-  It must preserve observer-specific sight ranges, fresh combat sightings, remembered
-  targets and deterministic iteration order.
-- Urgent agents assess routes every tick; threat responses can test eight escape
-  routes against several attackers. Dense emergency scenes remain substantially more
-  expensive than ordinary activity. Any route reuse needs explicit start/goal, radius
-  and traversal revision handling, plus accurate remaining distance estimates.
-- Resource perception scans all objects, and depletion cleanup scans the store each
-  tick. A resource index and event-driven depletion are candidates for worlds with
-  many objects; movement, removal and reservation visibility must stay correct.
-- Agent lookup is linear. An ID map could help combat-heavy runs, but requires a
-  consistent ownership boundary for the currently exposed agent array.
-- The scene adapter refreshes inspection text and draws all actors every frame.
-  View culling and cached geometry/styles are possible presentation improvements.
-  This audit measures headless CPU time, not GPU/frame rendering cost. Blood effects
-  remain bounded independently of population.
+The history implementation adds spatial candidate indices, direct agent-ID lookup,
+perception-phase reuse, bounded route caching, active-route reuse and a shared A*
+expansion budget. Broad-phase sight also filters barriers once per observer; the exact
+capsule tests remain authoritative. Observers receive independent belief snapshots,
+and the observation caches are discarded before physical state can change.
+
+Agent and object indices are refreshed after their respective mutations. Perception
+phase caches cap sight rays at 8,192 and each of people, resources and observer barrier
+sets at 2,048 entries. Route caching caps at 256 entries; history stores have per-agent
+limits documented in [agent-history.md](agent-history.md). Detailed history text is
+built only for the selected agent at 5 Hz. A* exhaustion returns DEFERRED, preserving
+uncertainty rather than generating psychological setbacks. The decision order rotates
+so early spawn IDs do not permanently monopolize that budget.
+
+Dense neighborhoods still require many exact observations. Threat responses and
+physical movement also cost work outside the A* budget. The renderer still draws all
+actors; these measurements exclude GPU rendering. No universal frame-time guarantee
+is implied by bounded memory or A* expansions.
 
 ## Verification
 
@@ -81,3 +82,42 @@ The 150-agent crowded emergency remains above the 100 ms budget for ten simulati
 ticks per second. This patch improves that case but does not solve extreme-density
 scaling. Full verification: 42/42 checks passed, plus independent code review with no
 blocking findings. No rendered graphical/GPU benchmark was available.
+
+
+## Phase 2 observations (Godot 4.6 stable, headless, 2026-10-22)
+
+Same host, engine, script, seed, five warmup ticks and thirty measured ticks. Baseline
+is the food-sharing branch (local `19c43cf`, remote `ef88e294`), not the older audit's
+baseline. Baseline and final runs were sequential, without concurrent test workloads.
+
+| Hungry agents | Layout | Before Phase 2 median / p95 (ms) | Phase 2 median / p95 (ms) |
+|---|---|---:|---:|
+| 50 | Spread out | 13.342 / 16.823 | 13.364 / 14.305 |
+| 150 | Spread out | 48.692 / 51.298 | 48.031 / 52.065 |
+| 50 | Crowded | 44.157 / 48.747 | 53.049 / 63.506 |
+| 150 | Crowded | 345.722 / 399.188 | 273.197 / 326.620 |
+
+The largest crowded case improved by about 21% at the median while adding history;
+the 50-agent crowded case became about 20% slower. History deliberately changes dense
+social behavior, so those two behavior digests differ and this is an end-to-end cost
+comparison, not a pure microbenchmark of equivalent actions. The spread-out digests
+match. Host load and the short evolving scenario affect timings. The 150-agent crowded
+case remains over the 100 ms budget for ten ticks per second.
+
+`benchmark_history.gd` processed 48,000 outcomes for twelve agents across 22,000 simulated
+seconds. All stores remained capped. A twelve-agent update batch measured 1.247 ms
+median early and 1.329 ms late (late p95 1.615 ms); largest JSON snapshot was 16,889 bytes.
+JSON size is not a runtime heap measurement. Updates scan bounded stores rather than
+the agent's lifetime history.
+
+The complete suite includes controlled memory swaps, ablation, counterexperience,
+shifted-clock restore, outcome producers, occluded witnesses, independent observations,
+spatial-index oracle comparisons, barrier pruning against exact geometry, cache
+invalidation, and deferred-work safety. Inspector behavior and small-viewport scrolling
+are exercised headlessly; rendered visual/GPU validation is not available in this run.
+
+Final verification: **49/49 checks passed** after review fixes. Independent review
+identified two integration defects: unchanged executing routes after a learned detour,
+and exact search-limit exhaustion misclassified as failure. Both were reproduced,
+fixed and covered by failing-then-passing regressions before the final suite and
+benchmark run.

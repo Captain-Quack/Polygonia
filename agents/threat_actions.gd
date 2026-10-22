@@ -22,6 +22,7 @@ static func candidates(agent: PolygonAgent,simulation: AgentSimulation) -> Array
 		var score = agent.personality.aggression*(60+30*agent.desperation)-risk-distance*2
 		if score <= 20: continue
 		var route = simulation.navigation.route(agent.position,belief.position,agent.radius)
+		if route.status==&"DEFERRED": continue
 		if route.status != &"OK": agent.prey_retry[id] = simulation.time+3; continue
 		options.append({"kind":&"pursue","key":"pursue:%d" % id,"target":id,"position":belief.position,"route_points":route.points,"route_revision":simulation.model.structures.traversal_revision,"score":score,"urgent":true,"reason":"Desperate for nourishment: accepting the risk of predation."})
 	return options
@@ -37,6 +38,7 @@ static func _responses(agent: PolygonAgent,simulation: AgentSimulation,active: A
 	var caution = agent.personality.caution
 	var best: Dictionary = {}
 	var best_gain := 0.0
+	var deferred := false
 	var direction = (agent.position-threat).normalized()
 	if direction == Vector2.ZERO: direction = Vector2.RIGHT
 	# Eight bounded candidates include shorter nearby exits in confined spaces.
@@ -50,6 +52,7 @@ static func _responses(agent: PolygonAgent,simulation: AgentSimulation,active: A
 			gain = minf(gain,point.distance_to(location)-agent.position.distance_to(location))
 		if gain <= maxf(.05,best_gain): continue
 		var route = simulation.navigation.route(agent.position,point,agent.radius)
+		if route.status==&"DEFERRED": deferred=true
 		if route.status != &"OK": continue
 		var safe := true
 		for id in active:
@@ -77,6 +80,7 @@ static func _responses(agent: PolygonAgent,simulation: AgentSimulation,active: A
 		var contact = agent.radius+float(observed.radius)+simulation._profile.contact_margin
 		if agent.position.distance_to(observed.position) <= contact or best.is_empty():
 			options.append({"kind":&"defend","key":"defend:%d" % defense_target,"target":defense_target,"position":observed.position,"score":1100.0 if best.is_empty() else 1000+60*(own_strength-enemy_strength)-10*caution+20*agent.desperation,"urgent":true,"reason":"No safe escape; defending myself." if best.is_empty() else "Defending: I appear better able to withstand this fight."})
+			if deferred and best.is_empty(): options[-1].reason="Escape assessment is pending; guarding against the visible threat."
 	return options
 static func tick(agent: PolygonAgent,simulation: AgentSimulation,delta: float) -> void:
 	var control = agent.controller
@@ -84,6 +88,7 @@ static func tick(agent: PolygonAgent,simulation: AgentSimulation,delta: float) -
 	if control.current.kind == &"flee":
 		agent.action = &"fleeing"
 		if not control._move(agent,simulation.navigation,delta): control.cancel(agent)
+		elif control.route_points.is_empty(): agent.memory.record(&"escaped",agent.position,simulation.time,0,0,.5)
 		return
 	var belief: Dictionary = agent.agent_beliefs.get(target_id,{})
 	if belief.is_empty(): control.cancel(agent); return
@@ -110,8 +115,10 @@ static func tick(agent: PolygonAgent,simulation: AgentSimulation,delta: float) -
 		return
 	if control.route_points.is_empty() or control.route_revision != simulation.model.structures.traversal_revision or control.current.position != location:
 		var route = simulation.navigation.route(agent.position,location,agent.radius)
+		if route.status==&"DEFERRED": agent.action=&"waiting: route assessment"; return
 		if route.status != &"OK":
 			agent.prey_retry[target_id] = simulation.time+3; control.cancel(agent); return
 		control.route_points = route.points; control.route_revision = simulation.model.structures.traversal_revision; control.current.position = location
 	agent.action = &"defending" if control.current.kind == &"defend" else &"pursuing"
 	if not control._move(agent,simulation.navigation,delta): control.cancel(agent)
+

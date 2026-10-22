@@ -8,6 +8,9 @@ var progress := 0.0
 var route_revision := -1
 var wait_until := 0.0
 func cancel(agent: PolygonAgent) -> void:
+	if provider != null and progress>0 and current.get("kind")==&"interact":
+		agent.memory.record(&"interrupted",agent.position,agent.memory.time,0,int(current.get("source",0)))
+		agent.memory.failure(current.get("interaction",&"eat"),agent.position,agent.memory.time)
 	if provider != null: provider.cancel(agent.id)
 	provider = null; progress = 0; route_points.clear(); current.clear()
 	agent.action = &"idle"
@@ -20,6 +23,9 @@ func reconsider(agent: PolygonAgent,options: Array,now: float,urgent: bool = fal
 		if not existing.is_empty() and (best.key == existing.key or (not urgent and best.score < existing.score + 0.12)):
 			# A newly observed position can legitimately redirect an existing intention.
 			if existing.get("position") == current.get("position"):
+				# A revised plan can avoid newly learned danger without restarting the meal.
+				if existing.has("route_points"):
+					route_points=existing.route_points.duplicate(); route_revision=existing.route_revision
 				current.merge(existing,true); agent.decision_reason = existing.get("reason",agent.decision_reason); return
 			best = existing
 	# Defending a meal retains its admission; fleeing and other interruptions release it.
@@ -32,6 +38,7 @@ func reconsider(agent: PolygonAgent,options: Array,now: float,urgent: bool = fal
 	cancel(agent)
 	if guarded != null: provider = guarded; progress = guarded_progress
 	current = best.duplicate(true)
+	if best.has("effects"): current.expected_effects=best.effects.duplicate()
 	if guarded != null and best.kind == &"defend": current.meal_key = meal_key
 	agent.decision_reason = best.get("reason","Balancing needs.")
 	if best.has("route_points"):
@@ -39,6 +46,7 @@ func reconsider(agent: PolygonAgent,options: Array,now: float,urgent: bool = fal
 	wait_until = now
 	agent.action = best.kind
 func _fail(agent: PolygonAgent,now: float,revision: int,reason: String) -> void:
+	if "Movement blocked" in reason: agent.memory.record(&"blocked",agent.position,now)
 	if agent.beliefs.has(current.get("key","")):
 		var belief: Dictionary = agent.beliefs[current.key]
 		belief.retry_at = now + (0.5 if reason == "Resource busy or depleted." else 8.0); belief.failed_revision = revision
@@ -74,6 +82,8 @@ func tick(agent: PolygonAgent,simulation,delta: float) -> void:
 				return
 			if route_points.is_empty():
 				var search = agent.exploration.choose(agent,nav)
+				if search.get("deferred",false):
+					agent.action=&"waiting: route assessment"; wait_until=now+.1; return
 				route_revision = revision
 				if search.is_empty():
 					agent.report_setback(now)
@@ -82,6 +92,7 @@ func tick(agent: PolygonAgent,simulation,delta: float) -> void:
 					return
 				if search.get("constrained",false): agent.report_setback(now)
 				route_points = search.points
+				if search.get("remembered",false): agent.decision_reason="Searching a place remembered from successful experiences."
 			agent.action = &"panicking" if panic else &"searching"
 			if not _move(agent,nav,delta):
 				agent.report_setback(now); route_points.clear(); wait_until = now + (.75 if panic else 1.0)
@@ -96,6 +107,7 @@ func tick(agent: PolygonAgent,simulation,delta: float) -> void:
 				agent.action = &"seeking food" if current.interaction == &"eat" else &"seeking rest"
 				if route_points.is_empty() or route_revision != revision:
 					var route = nav.route(agent.position,destination,agent.radius)
+					if route.status==&"DEFERRED": agent.action=&"waiting: route assessment"; return
 					if route.status != &"OK":
 						_fail(agent,now,revision,"Route unavailable (%s); trying something else." % route.status); return
 					route_points = route.points; route_revision = revision
@@ -119,6 +131,7 @@ func tick(agent: PolygonAgent,simulation,delta: float) -> void:
 			if progress >= maxf(0.1,provider.definition.duration):
 				var effects = provider.complete(agent.id)
 				if not effects.is_empty():
+					AgentCognition.outcome(agent,current,effects,now)
 					agent.body.apply_effects(effects)
 					agent.familiarity[current.key] = int(agent.familiarity.get(current.key,0))+1
 					agent.remember_event("Ate a portion." if current.interaction == &"eat" else "Rested.")
@@ -126,6 +139,7 @@ func tick(agent: PolygonAgent,simulation,delta: float) -> void:
 					if current.interaction == &"rest" and agent.body.fatigue > AgentNeeds.REST_TARGET and provider.begin(agent.id):
 						progress = 0.0
 						return
+				progress=0.0
 				cancel(agent); agent.next_decision = now; agent.next_perception = now
 func _move(agent: PolygonAgent,nav: AgentNavigation,delta: float) -> bool:
 	var remaining = agent.effective_speed() * delta

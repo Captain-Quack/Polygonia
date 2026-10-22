@@ -9,11 +9,21 @@ var model: WorldModel
 var _revision := -1
 var _radius := -1.0
 var _barriers: Array = []
+var _route_cache: Dictionary = {}
+var _time := 0.0
+var _remaining := -1
+var expansions_this_tick := 0
+var cache_hits_this_tick := 0
+var deferred_this_tick := 0
+func begin_tick(now: float,expansion_budget: int = 8192) -> void:
+	_time=now; _remaining=maxi(0,expansion_budget)
+	expansions_this_tick=0; cache_hits_this_tick=0; deferred_this_tick=0
 func _init(world: WorldModel = null) -> void:
 	model = world
 func _prepare(radius: float) -> void:
 	if _revision == model.structures.traversal_revision and _radius == radius: return
 	_revision = model.structures.traversal_revision; _radius = radius
+	_route_cache.clear()
 	_barriers = []
 	var openable: Dictionary = {}
 	for door in model.structures.get_doors():
@@ -31,9 +41,24 @@ func clear_segment(from: Vector2,to: Vector2,radius: float) -> bool:
 func route(from: Vector2,to: Vector2,radius: float) -> Dictionary:
 	if not StructureData.in_range(from) or not StructureData.in_range(to) or not is_finite(radius) or radius < 0:
 		return {"status":&"INVALID","points":[]}
+	_prepare(radius)
+	var key=Vector4(from.x,from.y,to.x,to.y)
+	var cached: Dictionary=_route_cache.get(key,{})
+	if not cached.is_empty() and _time-float(cached.at)<2.0:
+		cache_hits_this_tick+=1
+		return cached.result.duplicate(true)
+	var result=_search_route(from,to,radius)
+	if result.status==&"DEFERRED": deferred_this_tick+=1
+	else:
+		if _route_cache.size()>=256 and not _route_cache.has(key):
+			for oldest in _route_cache: _route_cache.erase(oldest); break
+		_route_cache[key]={"at":_time,"result":result.duplicate(true)}
+	return result
+func _search_route(from: Vector2,to: Vector2,radius: float) -> Dictionary:
 	if clear_segment(from,to,radius): return {"status":&"OK","points":[to]}
 	if not clear_segment(from,from,radius) or not clear_segment(to,to,radius):
 		return {"status":&"BLOCKED","points":[]}
+	if _remaining==0: return {"status":&"DEFERRED","points":[]}
 	var bounds = Rect2(from,Vector2.ZERO).expand(to).grow(MARGIN)
 	var heap: Array = []
 	var costs: Dictionary = {}
@@ -48,10 +73,12 @@ func route(from: Vector2,to: Vector2,radius: float) -> Dictionary:
 				costs[cell] = from.distance_to(p)
 				_push(heap,[costs[cell] + p.distance_to(to),cell])
 	var expanded := 0
-	while not heap.is_empty() and expanded < MAX_EXPANSIONS:
+	while not heap.is_empty() and expanded < MAX_EXPANSIONS and _remaining!=0:
 		var cell: Vector2i = _pop(heap)[1]
 		if closed.has(cell): continue
 		closed[cell] = true; expanded += 1
+		expansions_this_tick+=1
+		if _remaining>0: _remaining-=1
 		var p = Vector2(cell) * STEP
 		if p.distance_to(to) <= STEP * 1.5 and clear_segment(p,to,radius):
 			var points: Array = [to,p]
@@ -68,7 +95,8 @@ func route(from: Vector2,to: Vector2,radius: float) -> Dictionary:
 			if cost >= float(costs.get(next,INF)) or not clear_segment(p,q,radius): continue
 			costs[next] = cost; parent[next] = cell
 			_push(heap,[cost + q.distance_to(to),next])
-	return {"status":&"SEARCH_LIMIT" if expanded >= MAX_EXPANSIONS else &"NO_ROUTE","points":[]}
+	# Either work limit leaves an unfinished search uncertain, never disproven.
+	return {"status":&"DEFERRED" if not heap.is_empty() else &"NO_ROUTE","points":[]}
 func prepare_step(from: Vector2,to: Vector2,radius: float,actor: int) -> bool:
 	# Open only doors actually reached, never every door on the planned route.
 	for hit in model.physical._hits(from,to,radius):
@@ -97,3 +125,4 @@ static func _pop(heap: Array) -> Array:
 		heap[i] = heap[child]; i = child
 	heap[i] = last
 	return result
+

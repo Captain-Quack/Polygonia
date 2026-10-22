@@ -6,6 +6,28 @@ var agents: Array[PolygonAgent] = []
 var navigation: AgentNavigation
 var time := 0.0
 var seed_value := 1
+var route_expansion_budget := 8192
+var _by_id: Dictionary = {}
+var _agent_index := AgentSpatialIndex.new()
+var _object_index := AgentSpatialIndex.new()
+var _agents_dirty := true
+var _object_revision := -1
+var _decision_start := 0
+var _max_sight := 0.0
+func _refresh_agents() -> void:
+	_agent_index.rebuild(agents); _agents_dirty=false; _max_sight=0.0
+	for agent in agents:
+		if is_finite(agent.sight_range): _max_sight=maxf(_max_sight,agent.sight_range)
+func nearby_agents(point: Vector2,radius: float) -> Array:
+	if _agents_dirty: _refresh_agents()
+	return _agent_index.query(point,radius)
+func possible_witnesses(point: Vector2) -> Array:
+	if _agents_dirty: _refresh_agents()
+	return _agent_index.query(point,_max_sight)
+func nearby_objects(point: Vector2,radius: float) -> Array:
+	if _object_revision!=objects.revision:
+		_object_index.rebuild(objects.all()); _object_revision=objects.revision
+	return _object_index.query(point,radius)
 # Internal systems read this shared configuration without mutating it.
 # External callers receive a defensive copy through profile().
 var _profile := EmergencyProfile.new()
@@ -29,22 +51,25 @@ func spawn(point: Vector2) -> PolygonAgent:
 	agent.motion.begin(point,agent.facing)
 	agent.controller = AgentActionController.new()
 	agents.append(agent)
+	_by_id[agent.id]=agent; _agents_dirty=true
+	agent.next_cognition=time+fmod(agent.id*.137,1.0)
 	return agent
 func remove(id: int) -> void:
 	for agent in agents:
 		if agent.id == id:
-			agent.controller.cancel(agent); combat.forget(id); gore.remove_actor(id); agents.erase(agent); return
+			agent.controller.cancel(agent); combat.forget(id); gore.remove_actor(id); agents.erase(agent); _by_id.erase(id); _agents_dirty=true; return
 var combat := AgentCombatSystem.new()
 var gore := AgentGoreEffects.new()
 func get_agent(id: int) -> PolygonAgent:
-	for agent in agents:
-		if agent.id == id: return agent
-	return null
+	return _by_id.get(id)
 func tick(delta: float) -> void:
 	if not is_finite(delta) or delta <= 0: return
 	time += delta
+	navigation.begin_tick(time,route_expansion_budget)
+	_agents_dirty=true
 	gore.advance(delta)
 	for agent in agents:
+		agent.memory.time = time
 		agent.motion.begin(agent.position,agent.facing)
 		agent.body.tick_deprivation(delta,_profile)
 		agent.body.tick(delta)
@@ -53,23 +78,30 @@ func tick(delta: float) -> void:
 		if not agent.body.alive():
 			AgentDeathSystem.materialize(agent,self)
 	# Perception of intentions happens before any agent changes its decision.
+	# This shared frame dies before sharing, movement, admissions or door changes.
+	var perception_frame={"sight":{},"people":{},"resources":{}}
 	for agent in agents:
 		if not agent.body.alive(): continue
-		AgentPerception.observe_agents(agent,agents,model,time)
+		AgentPerception.observe_agents(agent,nearby_agents(agent.position,agent.sight_range),model,time,perception_frame)
 		var urgent = (agent.assessment.urgency > 0 and agent.assessment.harm_rate > 0) or AgentThreatActions.eligible(agent,_profile) or not agent.threats.is_empty()
 		if time >= agent.next_perception or urgent:
-			AgentPerception.observe(agent,objects,model,time)
+			AgentPerception.observe(agent,objects,model,time,nearby_objects(agent.position,agent.sight_range),perception_frame)
 			agent.next_perception = time+.25
+		AgentCognition.observe(agent,self)
 	AgentFoodSocial.share(self)
-	for agent in agents:
+	# Rotating first opportunity prevents permanent priority by spawn order.
+	for offset in range(agents.size()):
+		var agent=agents[(_decision_start+offset)%agents.size()]
 		if not agent.body.alive(): continue
 		var urgent = (agent.assessment.urgency > 0 and agent.assessment.harm_rate > 0) or AgentThreatActions.eligible(agent,_profile) or not agent.threats.is_empty()
 		if time >= agent.next_decision or urgent:
 			agent.decision_scores = AgentDecision.candidates(agent,time,model.structures.traversal_revision,self)
 			agent.controller.reconsider(agent,agent.decision_scores,time,urgent)
 			agent.next_decision = time+.5
+	_decision_start=(_decision_start+1)%maxi(1,agents.size())
 	for agent in agents:
 		if agent.body.alive(): agent.controller.tick(agent,self,delta)
+	_agents_dirty=true
 	combat.resolve(self)
 	for agent in agents:
 		if not agent.body.alive(): AgentDeathSystem.materialize(agent,self)

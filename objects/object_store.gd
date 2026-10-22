@@ -3,6 +3,7 @@ extends RefCounted
 signal changed
 var _objects: Dictionary = {}
 var _next_id := 1
+var revision := 0
 func add(definition: WorldObjectDefinition, point: Vector2) -> PolygonWorldObject:
 	if definition == null or not StructureData.in_range(point): return null
 	var object = PolygonWorldObject.new(definition)
@@ -10,7 +11,7 @@ func add(definition: WorldObjectDefinition, point: Vector2) -> PolygonWorldObjec
 	_next_id += 1
 	object.position = point
 	_objects[object.id] = object
-	changed.emit()
+	revision+=1; changed.emit()
 	return object
 func get_object(id: int) -> PolygonWorldObject:
 	return _objects.get(id)
@@ -21,7 +22,7 @@ func remove(id: int) -> bool:
 	if object == null: return false
 	object.invalidate()
 	_objects.erase(id)
-	changed.emit()
+	revision+=1; changed.emit()
 	return true
 func move(id: int, point: Vector2) -> bool:
 	var object = get_object(id)
@@ -30,7 +31,7 @@ func move(id: int, point: Vector2) -> bool:
 	for provider in object.providers: provider.cancel_all()
 	object.position = point
 	object.revision += 1
-	changed.emit()
+	revision+=1; changed.emit()
 	return true
 func nearest(point: Vector2, distance: float = 0.6, kind: StringName = &"") -> PolygonWorldObject:
 	var best: PolygonWorldObject
@@ -62,5 +63,5 @@ func share_food(source_id: int,owner: int,recipient: int,point: Vector2) -> Poly
 	object.id = _next_id; _next_id += 1
 	object.position = point
 	_objects[object.id] = object
-	changed.emit()
+	revision+=1; changed.emit()
 	return object

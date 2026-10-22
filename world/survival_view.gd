@@ -9,6 +9,7 @@ var inspecting := false
 var inspect_button: CheckButton
 var description: Label
 var clock_label: Label
+var _inspection_elapsed := 0.0
 var _triangle = AgentRenderer.rounded_triangle(1.0)
 var _remains = PackedVector2Array([Vector2(.9,0),Vector2(.25,.24),Vector2(-.4,.85),Vector2(-.3,.15),Vector2(-.75,-.6),Vector2(-.05,-.3),Vector2(.35,-.65),Vector2(.3,-.08)])
 @onready var model: WorldModel = get_parent().get_node("WorldModel")
@@ -18,7 +19,7 @@ var _remains = PackedVector2Array([Vector2(.9,0),Vector2(.25,.24),Vector2(-.4,.8
 func _ready() -> void:
 	call_deferred("_build_controls")
 func _build_controls() -> void:
-	var box = space_inspector.panel.get_child(0)
+	var box = space_inspector.content
 	box.add_child(HSeparator.new())
 	var row = HBoxContainer.new(); box.add_child(row)
 	var pause = Button.new(); pause.text = "Pause"; row.add_child(pause)
@@ -52,7 +53,11 @@ func _process(delta: float) -> void:
 		accumulator = minf(accumulator + delta*speed,0.8)
 		while accumulator >= SIMULATION_STEP:
 			model.simulation.tick(SIMULATION_STEP); accumulator -= SIMULATION_STEP
-	_refresh(); queue_redraw()
+	_inspection_elapsed += delta
+	if _inspection_elapsed >= .2:
+		_inspection_elapsed = 0.0
+		_refresh()
+	queue_redraw()
 func _refresh() -> void:
 	if description == null: return
 	var sim: AgentSimulation = model.simulation
@@ -60,12 +65,12 @@ func _refresh() -> void:
 	description.text = "Place Polygons, food and resting places
 using the Life tools. Inspect a Polygon
 to see its needs and decisions."
-	for agent in sim.agents:
-		if agent.id != selected_id: continue
+	var agent=sim.get_agent(selected_id)
+	if agent!=null:
 		var choices: Array[String] = []
 		for option in agent.decision_scores.slice(0,3):
 			choices.append("%s %.2f" % [option.get("interaction",option.kind),option.score])
-		description.text = agent.inspection_text()+"\n"+" / ".join(choices)+"\n"+(agent.recent_events[-1] if not agent.recent_events.is_empty() else "Observing the world.")
+		description.text = agent.inspection_text()+"\n"+" / ".join(choices)+"\n"+(agent.recent_events[-1] if not agent.recent_events.is_empty() else "Observing the world.")+AgentCognition.inspection(agent,sim.time)
 		return
 func _unhandled_input(event: InputEvent) -> void:
 	if not inspecting: return

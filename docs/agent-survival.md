@@ -101,8 +101,10 @@ minimal and can be replaced separately from behavior.
 
 - Live agents/objects are session-only. Existing structure serialization does not save them.
 - Navigation searches a half-cell lattice in a start/goal box expanded by 12 cells,
-  with a 4096-node budget. SEARCH_LIMIT/NO_ROUTE mean no route found within this search,
-  not mathematical proof of inaccessibility. Very tight curved apertures can be missed.
+  with a 4096-node per-search budget and a shared 8192-node budget per tick. An unfinished
+  search returns DEFERRED without negative evidence. NO_ROUTE means the bounded search
+  was exhausted, not mathematical proof of global inaccessibility. Very tight curved
+  apertures can be missed.
 - Exploration keeps a seeded heading, makes small direction changes on open ground,
   and tries larger turns when blocked. It remembers eight reached destinations to
   discourage immediate backtracking, but can revisit them when necessary. This is
@@ -211,3 +213,4 @@ outlines. Stains are local and translucent; tiny airborne detail is omitted when
 far out, and offscreen effects are culled. Agent outlines remain legible above the blood.
 Use **Blood effects** in the inspection panel to disable and clear the effects. This
 changes presentation only; the simulation follows the same outcomes with effects off.
+

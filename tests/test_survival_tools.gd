@@ -44,5 +44,16 @@ func run() -> void:
 	var before = model.simulation.time
 	view._process(1.0)
 	check(model.simulation.time == before,"pause freezes body and actions")
+	var selected=model.simulation.agents[0]
+	selected.memory.record(&"received",selected.position,model.simulation.time,99,1)
+	view.selected_id=selected.id; view._refresh()
+	check("Experience:" in view.description.text and "Polygon 99" in view.description.text,"selected agent inspection exposes its actual remembered experience")
+	root.size=Vector2i(800,480)
+	await process_frame; await process_frame
+	var panel=world.get_node("SpatialInspector").panel
+	check(panel.get_global_rect().end.y<=root.size.y and panel.size.y>100,"long history inspection stays inside a small viewport")
+	var scroll=panel.get_child(0) as ScrollContainer
+	check(scroll!=null and scroll.get_v_scroll_bar().max_value>scroll.size.y,"long inspection can be scrolled without enlarging the panel")
 	world.queue_free(); await process_frame
 	print("survival_tools: %d failures" % failures); quit(1 if failures else 0)
+

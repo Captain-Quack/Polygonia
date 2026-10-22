@@ -36,6 +36,8 @@ var timely_food := false
 var ordinary_food_unchecked := false
 
 var familiarity: Dictionary = {}
+var memory := AgentExperienceMemory.new()
+var next_cognition := 0.0
 func consideration_limit() -> int:
 	return maxi(2,8-int(body.deprivation*6))
 

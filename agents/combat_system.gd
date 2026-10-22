@@ -26,6 +26,7 @@ func resolve(simulation: AgentSimulation) -> Array:
 		target.agent_beliefs[actor.id] = AgentPerception.agent_snapshot(actor,simulation.time)
 		target.next_decision = simulation.time
 		target.remember_event("Attacked by Polygon %d." % actor.id)
+		AgentCognition.witnessed_attack(simulation,actor,target,amount)
 		strike.position = target.position
 		strike.direction = (target.position-actor.position).normalized()
 		strike.amount = amount
@@ -40,3 +41,4 @@ func resolve(simulation: AgentSimulation) -> Array:
 func forget(id: int) -> void:
 	_next_strike.erase(id)
 	_queued = _queued.filter(func(s): return s.actor != id and s.target != id)
+
